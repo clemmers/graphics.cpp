@@ -58,7 +58,17 @@ public:
 
 void drawLine(SDL_Renderer* renderer, long double x1, long double y1, long double x2, long double y2, Color color) {
 	SDL_SetRenderDrawColor(renderer, color.getRed(), color.getGreen(), color.getBlue(), SDL_ALPHA_OPAQUE);
-    SDL_RenderDrawLine(renderer, x1, y1, x2, y2);
+    SDL_RenderDrawLine(renderer, (int) x1, (int) y1, (int) x2, (int) y2);
+}
+
+std::vector<std::vector<long double>> calculateRegularPolygonVertices (int numSides, long double circumradius) {
+    std::vector<std::vector<long double>> vertices {};
+        long double angle = 2 * PI / numSides;
+        for (int i = 0; i < numSides; i++)
+        {
+            vertices.push_back(std::vector<long double>{circumradius * cos(i * angle), circumradius * sin(i * angle)});
+        }
+        return vertices;
 }
 
 class twoDimensionalObject {
@@ -118,27 +128,18 @@ public:
 class RegularPolygon : public Polygon {
 protected:
     int numSides;
-    int circumradius;
+    long double circumradius;
 
 public:
-    RegularPolygon(int x, int y, int numSides, int circumradius, Color color)
-    : Polygon(x, y, {
-        std::vector<std::vector<long double>> vertices;
-        long double angle = 2 * PI / numSides;
-        for (int i = 0; i < numSides; i++)
-        {
-            vertices.push_back(std::vector<long double>{circumradius * cos(i * angle), circumradius * sin(i * angle)});
-        }
-        return vertices;
-    }, color) {}
-
+    RegularPolygon(long double x, long double y, int numSides, long double circumradius, Color color)
+    : Polygon(x, y, calculateRegularPolygonVertices(numSides, circumradius), color) {}
 };
 
 void setPixel(SDL_Renderer* renderer, long double x, long double y, Color color)
 {
 
     SDL_SetRenderDrawColor(renderer, color.getRed(), color.getGreen(), color.getBlue(), SDL_ALPHA_OPAQUE);
-    SDL_RenderDrawPoint(renderer, x, y);
+    SDL_RenderDrawPoint(renderer, (int) x, (int) y);
 }
 
 int main()
@@ -176,6 +177,7 @@ int main()
     };
     Color RED = Color(255,0,0);
 	Polygon test(200.0L, 200.0L, verts, RED);
+    RegularPolygon hexagon(300.0L, 300.0L, 8, 50, Color(0, 0, 255));
     while (!quit)
     {
         while (SDL_PollEvent(&e) != 0)
@@ -193,7 +195,9 @@ int main()
         } greenAmount++;
         
 		test.getColorPointer()->setGreen(greenAmount);
+        hexagon.getColorPointer()->setGreen(greenAmount);
 		test.draw(renderer);
+        hexagon.draw(renderer);
 
 		SDL_RenderPresent(renderer);
     }
