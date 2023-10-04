@@ -93,12 +93,17 @@ public:
         return y;
     }
 
-    void setX(int x) {
+    void setX(long double x) {
         this->x = x;
     }
     
-    void setY(int y) {
+    void setY(long double y) {
         this->y = y;
+    }
+
+    void transform(long double dx, long double dy) {
+        this->x += dx;
+        this->y += dy;
     }
 };
 
@@ -131,8 +136,16 @@ protected:
     long double circumradius;
 
 public:
-    RegularPolygon(long double x, long double y, int numSides, long double circumradius, Color color)
-    : Polygon(x, y, calculateRegularPolygonVertices(numSides, circumradius), color) {}
+    RegularPolygon(long double x, long double y, int numSidess, long double circumradiuss, Color color)
+    : numSides(numSidess), circumradius(circumradiuss), Polygon(x, y, calculateRegularPolygonVertices(numSidess, circumradiuss), color) {}
+
+    long double getCircumradius() const {
+        return circumradius;
+    }
+
+    int getNumSides() const {
+        return numSides;
+    }
 };
 
 void setPixel(SDL_Renderer* renderer, long double x, long double y, Color color)
@@ -142,6 +155,8 @@ void setPixel(SDL_Renderer* renderer, long double x, long double y, Color color)
     SDL_RenderDrawPoint(renderer, (int) x, (int) y);
 }
 
+
+
 int main()
 {
     if (SDL_Init(SDL_INIT_VIDEO) < 0)
@@ -150,7 +165,7 @@ int main()
         return 1;
     }
 
-    SDL_Window* window = SDL_CreateWindow("Pixel Drawing", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
+    SDL_Window* window = SDL_CreateWindow("c++ graphics", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
     if (!window)
     {
         std::cerr << "SDL window creation failed: " << SDL_GetError() << std::endl;
@@ -177,9 +192,17 @@ int main()
     };
     Color RED = Color(255,0,0);
 	Polygon test(200.0L, 200.0L, verts, RED);
-    RegularPolygon hexagon(300.0L, 300.0L, 8, 50, Color(0, 0, 255));
+    RegularPolygon hexagon(300, 300, 8, 50, Color(0, 0, 255));
+
+    Uint32 prevTicks = SDL_GetTicks();
+    int frameCount = 0;
+    std::string windowTitle = "fps";
+
     while (!quit)
     {
+
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+        SDL_RenderClear(renderer);
         while (SDL_PollEvent(&e) != 0)
         {
             if (e.type == SDL_QUIT)
@@ -187,6 +210,7 @@ int main()
                 quit = true;
             }
         }
+        
         drawLine(renderer, 400.0L, 400.0L, 410.0L, 490.0L, RED);
 		drawLine(renderer, 400.0L, 400.0L, 500.0L, 400.0L, Color(255,255,0));
 
@@ -194,12 +218,31 @@ int main()
             greenAmount = 0;
         } greenAmount++;
         
-		test.getColorPointer()->setGreen(greenAmount);
+		
+        test.getColorPointer()->setGreen(greenAmount);
         hexagon.getColorPointer()->setGreen(greenAmount);
 		test.draw(renderer);
         hexagon.draw(renderer);
+        if(hexagon.getX() > SCREEN_WIDTH) {
+            std::cout << (0 - 2*hexagon.getCircumradius());
+            hexagon.setX(0 - 2*hexagon.getCircumradius());
+        } hexagon.transform(1,0);
+        
 
 		SDL_RenderPresent(renderer);
+
+        Uint32 currentTicks = SDL_GetTicks();
+        frameCount++;
+        if (currentTicks - prevTicks >= 1000)
+        {
+            int fps = frameCount * 1000 / (currentTicks - prevTicks);
+            windowTitle = "fps: " + std::to_string(fps);
+            SDL_SetWindowTitle(window, windowTitle.c_str());
+            
+            frameCount = 0;
+            prevTicks = currentTicks;
+        }
+
     }
 
     SDL_DestroyRenderer(renderer);
