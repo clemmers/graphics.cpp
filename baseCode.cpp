@@ -5,12 +5,15 @@
 #include <unistd.h>
 #include <vector>
 #include <math.h>
+#include <array>
 
 #define PI 3.141592653589793238462643383279502884L
 
 
 const int SCREEN_WIDTH = 800;
 const int SCREEN_HEIGHT = 600;
+
+class GraphicsWindow;
 
 class Color {
 private:
@@ -56,11 +59,6 @@ public:
     }
 };
 
-void drawLine(SDL_Renderer* renderer, long double x1, long double y1, long double x2, long double y2, Color color) {
-	SDL_SetRenderDrawColor(renderer, color.getRed(), color.getGreen(), color.getBlue(), SDL_ALPHA_OPAQUE);
-    SDL_RenderDrawLine(renderer, (int) x1, (int) y1, (int) x2, (int) y2);
-}
-
 std::vector<std::vector<long double>> calculateRegularPolygonVertices (int numSides, long double circumradius) {
     std::vector<std::vector<long double>> vertices {};
         long double angle = 2 * PI / numSides;
@@ -71,7 +69,7 @@ std::vector<std::vector<long double>> calculateRegularPolygonVertices (int numSi
         return vertices;
 }
 
-class twoDimensionalObject {
+class TwoDimensionalObject {
 protected:
 	long double x;
 	long double y;
@@ -79,8 +77,8 @@ protected:
 
 public:
 
-    virtual void draw(SDL_Renderer* renderer) const = 0;
-    twoDimensionalObject(long double xx, long double yy, Color colorr)
+    virtual void draw(GraphicsWindow* graphics) const = 0;
+    TwoDimensionalObject(long double xx, long double yy, Color colorr)
 	: x(xx), y(yy), color(colorr) {}
 
     Color* getColorPointer() {
@@ -109,74 +107,48 @@ public:
     }
 };
 
-
-
-class Polygon : public twoDimensionalObject {
-protected:
-	std::vector<std::vector<long double>> vertices;
-
-public:
-	Polygon(long double x, long double y, std::vector<std::vector<long double>> verticess, Color color)
-    : twoDimensionalObject(x, y, color), vertices(verticess) {}
-
-    Polygon(std::vector<std::vector<long double>> verticess) : twoDimensionalObject(0.0L, 0.0L, Color()), vertices(verticess) {}
-
-    std::vector<std::vector<long double>>* getVerticesPointer() {
-        return &vertices;
-    }
-
-	void draw(SDL_Renderer* renderer) const override {
-		int i;
-		for(i = 0; i < vertices.size() - 1; i++) {
-			drawLine(renderer, vertices[i][0] + x, vertices[i][1] + y, vertices[i+1][0] + x, vertices[i+1][1] + y, color);
-		}
-		drawLine(renderer, vertices[i][0] + x, vertices[i][1] + y, vertices[0][0] + x, vertices[0][1] + y, color);
-	}
-
-    void rotate(long double angle) {
-
-        long double rotationMatrix[2][2] = {
-            { cos(angle), -sin(angle) },
-            { sin(angle),  cos(angle) }
-        };
-
-        for(int i = 0; i < vertices.size(); i++) {
-            vertices[i][0] = vertices[i][0] * rotationMatrix[0][0] + vertices[i][1] * rotationMatrix[0][1];
-            vertices[i][1] = vertices[i][0] * rotationMatrix[1][0] + vertices[i][1] * rotationMatrix[1][1];
-        }
-    }
-};
-
-class RegularPolygon : public Polygon {
-protected:
-    int numSides;
-    long double circumradius;
+class Camera {
+private:
+    std::array<long double, 3> XYZ;
+    std::array<long double, 3> rollPitchYaw;
+    std::array<long double, 3> vXYZ;
+    std::array<long double, 3> aXYZ;
+    std::array<long double, 3> vRollPitchYaw;
+    std::array<long double, 3> aRollPitchYaw;
 
 public:
-    RegularPolygon(long double x, long double y, int numSidess, long double circumradiuss, Color color)
-    : numSides(numSidess), circumradius(circumradiuss), Polygon(x, y, calculateRegularPolygonVertices(numSidess, circumradiuss), color) {}
+    Camera(const std::array<long double, 3>& XYZ = {},
+           const std::array<long double, 3>& rollPitchYaw = {},
+           const std::array<long double, 3>& vXYZ = {},
+           const std::array<long double, 3>& aXYZ = {},
+           const std::array<long double, 3>& vRollPitchYaw = {},
+           const std::array<long double, 3>& aRollPitchYaw = {})
+        : XYZ(XYZ),
+          rollPitchYaw(rollPitchYaw),
+          vXYZ(vXYZ),
+          aXYZ(aXYZ),
+          vRollPitchYaw(vRollPitchYaw),
+          aRollPitchYaw(aRollPitchYaw) {}
 
-    long double getCircumradius() const {
-        return circumradius;
+    long double getX() const {
+        return XYZ[0];
     }
 
-    int getNumSides() const {
-        return numSides;
+    long double getY() const {
+        return XYZ[1];
+    }
+
+    long double getZ() const {
+        return XYZ[2];
     }
 };
-
-void setPixel(SDL_Renderer* renderer, long double x, long double y, Color color) {
-
-    SDL_SetRenderDrawColor(renderer, color.getRed(), color.getGreen(), color.getBlue(), SDL_ALPHA_OPAQUE);
-    SDL_RenderDrawPoint(renderer, (int) x, (int) y);
-}
 
 
 class GraphicsWindow {
 private:
     int screenWidth;
     int screenHeight;
-    std::vector<twoDimensionalObject*> objects;
+    std::vector<TwoDimensionalObject*> objects;
     Color backgroundColor;
     SDL_Window* window;
     SDL_Renderer* renderer;
@@ -185,14 +157,19 @@ private:
     SDL_Event e;
     int frameCount;
     std::string windowTitle;
-
+    Camera camera;
 
 public:
-    GraphicsWindow(int screenWidthInput, int screenHeightInput, std::vector<twoDimensionalObject*> objectss, Color backgroundColorInput)
-    : screenWidth(screenWidthInput), screenHeight(screenHeightInput), objects(objectss), backgroundColor(backgroundColorInput) {}
+    GraphicsWindow(int screenWidthInput, int screenHeightInput, std::vector<TwoDimensionalObject*> objectss, Color backgroundColorInput, Camera cameraInput)
+    : screenWidth(screenWidthInput), screenHeight(screenHeightInput), objects(objectss), backgroundColor(backgroundColorInput), camera(cameraInput) {}
 
-    GraphicsWindow(int screenWidthInput, int screenHeightInput, std::vector<twoDimensionalObject*> objectss)
-    : screenWidth(screenWidthInput), screenHeight(screenHeightInput), objects(objectss), backgroundColor(Color()) {}
+    GraphicsWindow(int screenWidthInput, int screenHeightInput, std::vector<TwoDimensionalObject*> objectss)
+    : screenWidth(screenWidthInput), screenHeight(screenHeightInput), objects(objectss), backgroundColor(Color()), camera(Camera()) {}
+
+    void drawLine(long double x1, long double y1, long double x2, long double y2, Color color) {
+        SDL_SetRenderDrawColor(renderer, color.getRed(), color.getGreen(), color.getBlue(), SDL_ALPHA_OPAQUE);
+        SDL_RenderDrawLine(renderer, (int) (x1 - camera.getX()), (int) (y1 - camera.getY()), (int) (x2 - camera.getX()), (int) (y2 - camera.getY()));
+    }
 
     bool isOpen() {
         return !quit;
@@ -236,11 +213,25 @@ public:
             while (SDL_PollEvent(&e) != 0) {
                 if (e.type == SDL_QUIT) {
                     quit = true;
+                } else if(e.type == SDL_KEYDOWN) {
+                    switch (e.key.keysym.sym) {
+                        case SDLK_UP:
+                            std::cout << "up!" << std::endl;
+                            break;
+                        case SDLK_DOWN:
+                            break;
+                        case SDLK_LEFT:
+                            break;
+                        case SDLK_RIGHT:
+                            break;
+                        default:
+                            break;
+                    }
                 }
             }
 
             for(int i = 0; i < objects.size(); i++) {
-                objects[i]->draw(renderer);
+                objects[i]->draw(this);
             }
 
             SDL_RenderPresent(renderer);
@@ -274,6 +265,67 @@ public:
 };
 
 
+
+class Polygon : public TwoDimensionalObject {
+protected:
+	std::vector<std::vector<long double>> vertices;
+
+public:
+	Polygon(long double x, long double y, std::vector<std::vector<long double>> verticess, Color color)
+    : TwoDimensionalObject(x, y, color), vertices(verticess) {}
+
+    Polygon(std::vector<std::vector<long double>> verticess) : TwoDimensionalObject(0.0L, 0.0L, Color()), vertices(verticess) {}
+
+    std::vector<std::vector<long double>>* getVerticesPointer() {
+        return &vertices;
+    }
+
+	void draw(GraphicsWindow* graphics) const override {
+		int i;
+		for(i = 0; i < vertices.size() - 1; i++) {
+			graphics->drawLine(vertices[i][0] + x, vertices[i][1] + y, vertices[i+1][0] + x, vertices[i+1][1] + y, color);
+		}
+		graphics->drawLine(vertices[i][0] + x, vertices[i][1] + y, vertices[0][0] + x, vertices[0][1] + y, color);
+	}
+
+    void rotate(long double angle) {
+
+        long double rotationMatrix[2][2] = {
+            { cos(angle), -sin(angle) },
+            { sin(angle),  cos(angle) }
+        };
+
+        for(int i = 0; i < vertices.size(); i++) {
+            vertices[i][0] = vertices[i][0] * rotationMatrix[0][0] + vertices[i][1] * rotationMatrix[0][1];
+            vertices[i][1] = vertices[i][0] * rotationMatrix[1][0] + vertices[i][1] * rotationMatrix[1][1];
+        }
+    }
+};
+
+class RegularPolygon : public Polygon {
+protected:
+    int numSides;
+    long double circumradius;
+
+public:
+    RegularPolygon(long double x, long double y, int numSidess, long double circumradiuss, Color color)
+    : numSides(numSidess), circumradius(circumradiuss), Polygon(x, y, calculateRegularPolygonVertices(numSidess, circumradiuss), color) {}
+
+    long double getCircumradius() const {
+        return circumradius;
+    }
+
+    int getNumSides() const {
+        return numSides;
+    }
+};
+
+void setPixel(SDL_Renderer* renderer, long double x, long double y, Color color) {
+
+    SDL_SetRenderDrawColor(renderer, color.getRed(), color.getGreen(), color.getBlue(), SDL_ALPHA_OPAQUE);
+    SDL_RenderDrawPoint(renderer, (int) x, (int) y);
+}
+
 int main()
 {
 
@@ -285,9 +337,9 @@ int main()
         };
     Color RED = Color(255,0,0);
     Polygon test(200.0L, 200.0L, verts, RED);
-    RegularPolygon hexagon(300, 300, 8, 50, Color(0, 0, 255));
-    std::vector<twoDimensionalObject*> objects{&test, &hexagon};
-    GraphicsWindow window(800, 600, objects);
+    RegularPolygon hexagon(300, 300, 8, 50, Color(0, 255, 255));
+    std::vector<TwoDimensionalObject*> objects{&test, &hexagon};
+    GraphicsWindow window(800, 600, objects, Color(255,255,255), Camera());
     
     window.open();
     while(window.isOpen()) {
