@@ -102,8 +102,8 @@ public:
     }
 
     void transform(long double dx, long double dy) {
-        this->x += dx;
-        this->y += dy;
+        x += dx;
+        y += dy;
     }
 };
 
@@ -112,23 +112,30 @@ private:
     std::array<long double, 3> XYZ;
     std::array<long double, 3> rollPitchYaw;
     std::array<long double, 3> vXYZ;
-    std::array<long double, 3> aXYZ;
     std::array<long double, 3> vRollPitchYaw;
-    std::array<long double, 3> aRollPitchYaw;
+    long double frictionCoef;
 
 public:
     Camera(const std::array<long double, 3>& XYZ = {},
            const std::array<long double, 3>& rollPitchYaw = {},
            const std::array<long double, 3>& vXYZ = {},
-           const std::array<long double, 3>& aXYZ = {},
            const std::array<long double, 3>& vRollPitchYaw = {},
-           const std::array<long double, 3>& aRollPitchYaw = {})
+           const std::array<long double, 3>& aRollPitchYaw = {},
+           long double frictionCoef = 0.99)
         : XYZ(XYZ),
           rollPitchYaw(rollPitchYaw),
           vXYZ(vXYZ),
-          aXYZ(aXYZ),
           vRollPitchYaw(vRollPitchYaw),
-          aRollPitchYaw(aRollPitchYaw) {}
+          frictionCoef(frictionCoef) {}
+
+    void update() {
+        XYZ[0] += vXYZ[0];
+        XYZ[1] += vXYZ[1];
+        XYZ[2] += vXYZ[2];
+        vXYZ[0] *= frictionCoef;
+        vXYZ[1] *= frictionCoef;
+        vXYZ[2] *= frictionCoef;
+    }
 
     long double getX() const {
         return XYZ[0];
@@ -140,6 +147,18 @@ public:
 
     long double getZ() const {
         return XYZ[2];
+    }
+
+    void translateVX(long double dx) {
+        vXYZ[0]+=dx;
+    }
+    
+    void translateVY(long double dy) {
+        vXYZ[1]+=dy;
+    }
+
+    void translateVZ(long double dz) {
+        vXYZ[2]+=dz;
     }
 };
 
@@ -207,54 +226,51 @@ public:
     }
 
     int refresh() {
-        if (!quit) {
-            SDL_SetRenderDrawColor(renderer, backgroundColor.getRed(), backgroundColor.getGreen(), backgroundColor.getBlue(), 255);
-            SDL_RenderClear(renderer);
-            while (SDL_PollEvent(&e) != 0) {
-                if (e.type == SDL_QUIT) {
-                    quit = true;
-                } else if(e.type == SDL_KEYDOWN) {
-                    switch (e.key.keysym.sym) {
-                        case SDLK_UP:
-                            std::cout << "up!" << std::endl;
-                            break;
-                        case SDLK_DOWN:
-                            break;
-                        case SDLK_LEFT:
-                            break;
-                        case SDLK_RIGHT:
-                            break;
-                        default:
-                            break;
-                    }
+        if (quit) {
+            this->destroy();
+            return 1;
+        }
+        SDL_SetRenderDrawColor(renderer, backgroundColor.getRed(), backgroundColor.getGreen(), backgroundColor.getBlue(), 255);
+        SDL_RenderClear(renderer);
+        while (SDL_PollEvent(&e) != 0) {
+            if (e.type == SDL_QUIT) {
+                quit = true;
+            } else if(e.type == SDL_KEYDOWN) {
+                if(e.key.keysym.sym == SDLK_UP) {
+                    camera.translateVY(-1);
                 }
-            }
-
-            for(int i = 0; i < objects.size(); i++) {
-                objects[i]->draw(this);
-            }
-
-            SDL_RenderPresent(renderer);
-
-            Uint32 currentTicks = SDL_GetTicks();
-            frameCount++;
-            if (currentTicks - prevTicks >= 1000) {
-                int fps = frameCount * 1000 / (currentTicks - prevTicks);
-                windowTitle = "c++ graphics - fps: " + std::to_string(fps);
-                SDL_SetWindowTitle(window, windowTitle.c_str());
+                if(e.key.keysym.sym == SDLK_DOWN) {
+                    camera.translateVY(1);
+                }
+                if(e.key.keysym.sym == SDLK_LEFT) {
+                    camera.translateVX(-1);
+                }
+                if(e.key.keysym.sym == SDLK_RIGHT) {
+                    camera.translateVX(1);
+                }
                 
-                frameCount = 0;
-                prevTicks = currentTicks;
             }
-
-            return 0;
         }
 
-        SDL_DestroyRenderer(renderer);
-        SDL_DestroyWindow(window);
-        SDL_Quit();
+        for(int i = 0; i < objects.size(); i++) {
+            objects[i]->draw(this);
+        }
 
-        return 1;
+        camera.update();
+
+        SDL_RenderPresent(renderer);
+
+        Uint32 currentTicks = SDL_GetTicks();
+        frameCount++;
+        if (currentTicks - prevTicks >= 1000) {
+            int fps = frameCount * 1000 / (currentTicks - prevTicks);
+            windowTitle = "c++ graphics - fps: " + std::to_string(fps);
+            SDL_SetWindowTitle(window, windowTitle.c_str());
+            
+            frameCount = 0;
+            prevTicks = currentTicks;
+        }
+        return 0;
     }
 
     void destroy() {
