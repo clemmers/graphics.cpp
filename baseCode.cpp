@@ -153,6 +153,12 @@ public:
         yaw += dYaw;
     }
 
+    void translateAngle(long double dRoll, long double dPitch, long double dYaw) {
+        roll += dRoll;
+        pitch += dPitch;
+        yaw += dYaw;
+    }
+
     void translate(long double dx, long double dy, long double dz) {
         x += dx;
         y += dy;
@@ -212,36 +218,16 @@ public:
 
 };
 
-std::array<long double, 3> rotateX(long double x, long double y, long double z, long double angle) {
+
+std::array<long double, 3> rotateVertex(long double x, long double y, long double z, long double roll, long double pitch, long double yaw) {
     std::array<long double, 3> rotatedVector {
-        x,
-        y * cos(angle) + z * -sin(angle),
-        y * sin(angle) + z * cos(angle)
+        x*cos(yaw)*cos(pitch)+y*cos(yaw)*sin(pitch)*sin(roll)-y*sin(yaw)*cos(roll)+z*cos(yaw)*sin(pitch)*cos(roll)+z*sin(yaw)*sin(roll),
+        x*sin(yaw)*cos(pitch)+y*sin(yaw)*sin(pitch)*sin(roll)+y*cos(yaw)*cos(roll)+z*sin(yaw)*sin(pitch)*cos(roll)-z*cos(yaw)*sin(roll),
+        x*-sin(pitch)+y*cos(pitch)*sin(roll)+z*cos(pitch)*cos(roll)
     };
 
     return rotatedVector;
 }
-
-std::array<long double, 3> rotateY(long double x, long double y, long double z, long double angle) {
-    std::array<long double, 3> rotatedVector {
-        x * cos(angle) + z * sin(angle),
-        y,
-        x * -sin(angle) + z * cos(angle)
-    };
-
-    return rotatedVector;
-}
-
-std::array<long double, 3> rotateZ(long double x, long double y, long double z, long double angle) {
-    std::array<long double, 3> rotatedVector {
-        x * cos(angle) + y * -sin(angle),
-        x * sin(angle) + y * cos(angle),
-        z
-    };
-
-    return rotatedVector;
-}
-
 
 class Polygon : public GraphicalObject {
 protected:
@@ -298,9 +284,11 @@ public:
         std::vector<std::array<long double, 3>> rotatedVertices{};
         std::vector<std::array<long double, 3>>& verticesPointer = object.getVertices();
         for(int i = 0; i < verticesPointer.size(); i++) {
-            std::array<long double, 3> tempVerts = rotateX(verticesPointer[i][0],verticesPointer[i][1],verticesPointer[i][2],object.getRoll());
-            tempVerts = rotateY(tempVerts[0],tempVerts[1],tempVerts[2],object.getPitch());
-            tempVerts = rotateZ(tempVerts[0],tempVerts[1],tempVerts[2],object.getYaw());
+            //std::array<long double, 3> tempVerts = rotateX(verticesPointer[i][0],verticesPointer[i][1],verticesPointer[i][2],object.getRoll());
+            //tempVerts = rotateY(tempVerts[0],tempVerts[1],tempVerts[2],object.getPitch());
+            //tempVerts = rotateZ(tempVerts[0],tempVerts[1],tempVerts[2],object.getYaw());
+
+            std::array<long double, 3> tempVerts = rotateVertex(verticesPointer[i][0],verticesPointer[i][1],verticesPointer[i][2],object.getRoll(),object.getPitch(),object.getYaw());
             rotatedVertices.push_back(tempVerts);
         }
         for(int i = 0; i < rotatedVertices.size(); i++) {
@@ -471,9 +459,8 @@ int main()
 
     while(window.isOpen()) {
         test.translateRoll(0.001);
-        cube.translateRoll(0.001);
-        cube.translatePitch(0.001);
-        cube.translateYaw(0.001);
+        hexagon.translatePitch(-0.005);
+        cube.translateAngle(0.001,0.001,0.001);
         cube.translate(0.1,0,0);
         window.refresh();
     }
