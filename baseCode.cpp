@@ -10,27 +10,30 @@
 
 #define PI 3.141592653589793238462643383279502884L
 #define LEFT -1
-#define UP -1
+#define UP 1
 #define RIGHT 1
-#define DOWN 1
+#define DOWN -1
 
 
 const int SCREEN_WIDTH = 800;
 const int SCREEN_HEIGHT = 600;
 
+
 const std::vector<std::array<long double, 3>> cubeVerts {
     {-50.0L, -50.0L, -50.0L},
+    {-50.0L, 50.0L, -50.0L},
+    {-50.0L, 50.0L, 50.0L},
+    {-50.0L, -50.0L, 50.0L},
     {50.0L, -50.0L, -50.0L},
     {50.0L, 50.0L, -50.0L},
-    {-50.0L, 50.0L, -50.0L},
-    {-50.0L, -50.0L, 50.0L},
-    {50.0L, -50.0L, 50.0L},
     {50.0L, 50.0L, 50.0L},
-    {-50.0L, 50.0L, 50.0L}
+    {50.0L, -50.0L, 50.0L}
 };
 
+std::vector<int> cubeVertsOrder {0,1,2,3,0,4,5,6,7,4,0,1,5,6,2,3,7};
+
 class GraphicsWindow;
-class Polygon;
+class Polyhedron;
 
 class Color {
 private:
@@ -190,7 +193,7 @@ private:
 public:
     Camera(long double x = 0, long double y = 0, long double z = 0,
            long double roll = 0, long double pitch = 0, long double yaw = 0,
-           long double movementSpeed = 1, long double lookSpeed = 0.01L,
+           long double movementSpeed = 1, long double lookSpeed = 0.001L,
            long double friction = 0.5, long double vX = 0, long double vY = 0,
            long double vZ = 0)
         : GraphicalObject(x,y,z,roll,pitch,yaw), friction(friction),
@@ -224,13 +227,13 @@ public:
 
     void translateLook(int x, int y) {
         translatePitch(x * lookSpeed);
-        translateRoll(y * lookSpeed);
+        //translateRoll(y * lookSpeed);
         //std::cout << roll << std::endl;
-        if(roll > PI/2) {
-            setRoll(PI/2);
-        } else if(roll < -PI/2) {
-            setRoll(-PI/2);
-        }
+        //if(roll > PI/2) {
+        //    setRoll(PI/2);
+        //} else if(roll < -PI/2) {
+        //    setRoll(-PI/2);
+        //}
     }
 };
 
@@ -241,6 +244,8 @@ std::array<long double, 3> rotateVertex(long double x, long double y, long doubl
     long double sinyaw = sin(yaw);
     long double sinpitch = sin(pitch);
     long double sinroll = sin(roll);
+
+    // dot product of vector [x,y,z] and product of rotation matrix Z * rotation matrix Y * rotation matrix X
     std::array<long double, 3> rotatedVector {
         x*cosyaw*cospitch+y*cosyaw*sinpitch*sinroll-y*sinyaw*cosroll+z*cosyaw*sinpitch*cosroll+z*sinyaw*sinroll,
         x*sinyaw*cospitch+y*sinyaw*sinpitch*sinroll+y*cosyaw*cosroll+z*sinyaw*sinpitch*cosroll-z*cosyaw*sinroll,
@@ -250,21 +255,41 @@ std::array<long double, 3> rotateVertex(long double x, long double y, long doubl
     return rotatedVector;
 }
 
-class Polygon : public GraphicalObject {
+class Polyhedron : public GraphicalObject {
 protected:
 	std::vector<std::array<long double, 3>> vertices;
+    std::vector<int> vertsOrder;
     Color color;
 
 public:
-	Polygon(long double x = 0, long double y = 0, long double z = 0, std::vector<std::array<long double, 3>> vertices = {}, Color color = Color(), long double roll = 0, long double pitch = 0, long double yaw = 0)
-    : GraphicalObject(x, y, z, roll, pitch, yaw), vertices(vertices), color(color) {}
+	Polyhedron(long double x = 0, long double y = 0, long double z = 0, std::vector<std::array<long double, 3>> vertices = {}, Color color = Color(), std::vector<int> vertsOrder = {}, long double roll = 0, long double pitch = 0, long double yaw = 0)
+    : GraphicalObject(x, y, z, roll, pitch, yaw), vertices(vertices), vertsOrder(verifyVertsOrder(vertsOrder)), color(color) {}
 
+    std::vector<int> verifyVertsOrder(std::vector<int> vertsOrder) {
+        if(vertsOrder.size() != 0) {
+            return vertsOrder;
+        }
+        return defaultVertsOrder();
+    }
+
+    std::vector<int> defaultVertsOrder() {
+        std::vector<int> vertsOrder;
+        for(int i = 0; i < vertices.size(); i++) {
+            vertsOrder.push_back(i);
+        }
+        vertsOrder.push_back(0);
+        return vertsOrder;
+    }
 
     void draw(GraphicsWindow& graphics);
 
 
     Color& getColor() {
         return color;
+    }
+
+    std::vector<int>& getVertsOrder() {
+        return vertsOrder;
     }
 
     std::vector<std::array<long double, 3>>& getVertices() {
@@ -277,7 +302,7 @@ class GraphicsWindow {
 private:
     int screenWidth;
     int screenHeight;
-    std::vector<Polygon*>* objects;
+    std::vector<Polyhedron*>* objects;
     Color backgroundColor;
     SDL_Window* window;
     SDL_Renderer* renderer;
@@ -287,15 +312,13 @@ private:
     int frameCount;
     std::string windowTitle;
     Camera camera;
-    int prevMouseX;
-    int prevMouseY;
     Color RED;
     Color GREEN;
     Color BLUE;
 
 public:
-    GraphicsWindow(int screenWidth, int screenHeight, std::vector<Polygon*>* objects, Color backgroundColor, Camera camera)
-    : screenWidth(screenWidth), screenHeight(screenHeight), objects(objects), backgroundColor(backgroundColor), camera(camera), prevMouseX(0), prevMouseY(0), RED(Color(255,0,0)), GREEN(Color(0,255,0)), BLUE(Color(0,0,255)) {}
+    GraphicsWindow(int screenWidth, int screenHeight, std::vector<Polyhedron*>* objects, Color backgroundColor, Camera camera)
+    : screenWidth(screenWidth), screenHeight(screenHeight), objects(objects), backgroundColor(backgroundColor), camera(camera), RED(Color(255,0,0)), GREEN(Color(0,255,0)), BLUE(Color(0,0,255)) {}
 
 
     void drawObjectTwoWowTheseFunctionsAreOrganizedVeryPoorlyFixThisLaterPlease(long double x1, long double y1, long double z1, long double x2, long double y2, long double z2, Color& color) {
@@ -306,7 +329,7 @@ public:
         long double newX2 = (v2[0] / (v2[2]*0.001));
         long double newY1 = (v1[1] / (v1[2]*0.001));
         long double newY2 = (v2[1] / (v2[2]*0.001));
-        
+         
         // if line is off screen, do not display
         if((newX1 < 0 || newX1 > SCREEN_WIDTH) && (newX2 < 0 || newX2 > SCREEN_WIDTH)
         || (newY1 < 0 || newY1 > SCREEN_HEIGHT) && (newY2 < 0 || newY2 > SCREEN_HEIGHT)
@@ -315,7 +338,7 @@ public:
         }
 
         SDL_SetRenderDrawColor(renderer, color.getRed(), color.getGreen(), color.getBlue(), SDL_ALPHA_OPAQUE);
-        drawLine((int) (v1[0] / (v1[2]*0.001)), (int) (v1[1] / (v1[2]*0.001)), (int) (v2[0] / (v2[2]*0.001)), (int) (v2[1] / (v2[2]*0.001)), color);
+        drawLine((int) newX1, (int) newY1, (int) newX2, (int) newY2, color);
         //SDL_RenderDrawLine(renderer, (int) ((x1 - camera.getX())/(z1 - camera.getZ())), (int) ((y1 - camera.getY())/(z1 - camera.getZ())), (int) ((x2 - camera.getX())/(z2 - camera.getZ())), (int) ((y2 - camera.getY())/(z2 - camera.getZ())));
     }
 
@@ -324,17 +347,16 @@ public:
         SDL_RenderDrawLine(renderer, (int) x1, (int) y1, (int) x2, (int) y2);
     }
 
-    void drawObject(Polygon& object) {
+    void drawObject(Polyhedron& object) {
         std::vector<std::array<long double, 3>> rotatedVertices{};
         std::vector<std::array<long double, 3>>& verticesPointer = object.getVertices();
         for(int i = 0; i < verticesPointer.size(); i++) {
             std::array<long double, 3> tempVerts = rotateVertex(verticesPointer[i][0],verticesPointer[i][1],verticesPointer[i][2],object.getRoll(),object.getPitch(),object.getYaw());
             rotatedVertices.push_back(tempVerts);
         }
-        for(int i = 0; i < rotatedVertices.size(); i++) {
-            for(int j = 0; j < rotatedVertices.size(); j++) {
-                this->drawObjectTwoWowTheseFunctionsAreOrganizedVeryPoorlyFixThisLaterPlease(rotatedVertices[i][0] + object.getX(), rotatedVertices[i][1] + object.getY(), rotatedVertices[i][2] + object.getZ(), rotatedVertices[j][0] + object.getX(), rotatedVertices[j][1] + object.getY(), rotatedVertices[j][2] + object.getZ(), object.getColor());
-            }
+        std::vector<int>& vertsOrderPointer = object.getVertsOrder();
+        for(int i = 0; i < vertsOrderPointer.size() - 1; i++) {
+            this->drawObjectTwoWowTheseFunctionsAreOrganizedVeryPoorlyFixThisLaterPlease(rotatedVertices[vertsOrderPointer[i]][0] + object.getX(), rotatedVertices[vertsOrderPointer[i]][1] + object.getY(), rotatedVertices[vertsOrderPointer[i]][2] + object.getZ(), rotatedVertices[vertsOrderPointer[i+1]][0] + object.getX(), rotatedVertices[vertsOrderPointer[i+1]][1] + object.getY(), rotatedVertices[vertsOrderPointer[i+1]][2] + object.getZ(), object.getColor());
         }
     }
 
@@ -342,7 +364,7 @@ public:
         return !quit;
     }
 
-    void addObject(Polygon* object) {
+    void addObject(Polyhedron* object) {
         objects->push_back(object);
     }
 
@@ -354,6 +376,7 @@ public:
         }
 
         window = SDL_CreateWindow("c++ graphics - fps:", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, screenWidth, screenHeight, SDL_WINDOW_SHOWN);
+        SDL_SetRelativeMouseMode(SDL_TRUE);
         if (!window)
         {
             std::cerr << "SDL window creation failed: " << SDL_GetError() << std::endl;
@@ -369,7 +392,6 @@ public:
 
         
         quit = false;
-        
         prevTicks = SDL_GetTicks();
         frameCount = 0;
         windowTitle = "fps";
@@ -389,37 +411,35 @@ public:
                 quit = true;
             }
             if (e.type == SDL_MOUSEMOTION) {
-                camera.translateLook(prevMouseX - e.motion.x, prevMouseY - e.motion.y);
-                prevMouseX = e.motion.x;
-                prevMouseY = e.motion.y;
+                camera.translateLook(-e.motion.xrel, e.motion.yrel);
+                //std::cout << "xrel: " << e.motion.xrel << " yrel: " << e.motion.yrel << std::endl;
             }
             if (e.type == SDL_KEYDOWN) {
                 SDL_Keycode keyPressed = e.key.keysym.sym;
                 if (keyPressed == SDLK_g) {
-                    Polygon* poly = new Polygon(camera.getX(), camera.getY(), camera.getZ(), cubeVerts);
+                    Polyhedron* poly = new Polyhedron(camera.getX(), camera.getY() + 300, camera.getZ(), cubeVerts, Color(), cubeVertsOrder);
                     addObject(poly);
                 }
             }
         }
 
+        int mouseX, mouseY;
+        SDL_GetMouseState(&mouseX, &mouseY);
+        
+
         const Uint8* keystates = SDL_GetKeyboardState(NULL);
 
         if(keystates[SDL_SCANCODE_LEFT]) {
             camera.translateVX(LEFT);
-            //camera.translateVY();
-            //camera.translateVZ();
         }
         if(keystates[SDL_SCANCODE_RIGHT]) {
             camera.translateVX(RIGHT);
         }
         if(keystates[SDL_SCANCODE_UP]) {
-            camera.translateVY(UP);
-            //camera.translateVY(camera.getPitch() / (PI/2.0L));
-            //camera.translateVX((camera.getRoll() - 180) / (PI));
-            //camera.translateVZ((camera.getYaw() - 180) / (PI));
+            camera.translateVZ(UP);
         }
         if(keystates[SDL_SCANCODE_DOWN]) {
-            camera.translateVY(DOWN);
+            camera.translateVZ(DOWN);
         }
         if(keystates[SDL_SCANCODE_Q]) {
             destroy();
@@ -462,18 +482,18 @@ public:
 };
 
 
-void Polygon::draw(GraphicsWindow& graphics) {
+void Polyhedron::draw(GraphicsWindow& graphics) {
 		graphics.drawObject(*this);
 }
 
-class RegularPolygon : public Polygon {
+class RegularPolygon : public Polyhedron {
 protected:
     int numSides;
     long double circumradius;
 
 public:
     RegularPolygon(long double x = 0, long double y = 0, long double z = 0, int numSides = 5, long double circumradius = 50, Color color = Color())
-    : numSides(numSides), circumradius(circumradius), Polygon(x, y, z, calculateRegularPolygonVertices(numSides, circumradius), color) {}
+    : numSides(numSides), circumradius(circumradius), Polyhedron(x, y, z, calculateRegularPolygonVertices(numSides, circumradius), color) {}
 
     long double getCircumradius() const {
         return circumradius;
@@ -482,12 +502,6 @@ public:
     int getNumSides() const {
         return numSides;
     }
-};
-
-class Polyhedron : public Polygon {
-public:
-    Polyhedron(long double x = 0, long double y = 0, long double z = 0, std::vector<std::array<long double, 3>> vertices = {}, long double yaw = 0, long double pitch = 0, long double roll = 0, Color color = Color())
-    : Polygon(x,y,z,vertices,color,roll,pitch,yaw) {}
 };
 
 void setPixel(SDL_Renderer* renderer, long double x, long double y, Color color) {
@@ -504,12 +518,14 @@ int main()
             {-50.0L, -50.0L, 0.0L},
             {-50.0L, 0.0L, 0.0L}
     };
+
+
     Color RED = Color(255,0,0);
-    Polygon test(200.0L, 200.0L, 200.0L, squareVerts, RED);
-    Polyhedron cube(400.0L, 400.0L, 100.0L, cubeVerts);
+    Polyhedron test(200.0L, 200.0L, 200.0L, squareVerts, RED);
+    Polyhedron cube(400.0L, 300.0L, 100.0L, cubeVerts, Color(), cubeVertsOrder);
     RegularPolygon hexagon(300, 300, 200, 8, 50, Color(0, 255, 255));
-    std::vector<Polygon*> objects{&test, &hexagon, &cube};
-    GraphicsWindow window(800, 600, &objects, Color(255,255,255), Camera());
+    std::vector<Polyhedron*> objects{&test, &hexagon, &cube};
+    GraphicsWindow window(800, 600, &objects, Color(255,255,255), Camera(0,0,-1000,0,0,0));
     
     window.open();
     int direction = 1;
