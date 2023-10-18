@@ -18,6 +18,17 @@
 const int SCREEN_WIDTH = 800;
 const int SCREEN_HEIGHT = 600;
 
+const std::vector<std::array<long double, 3>> cubeVerts {
+    {-50.0L, -50.0L, -50.0L},
+    {50.0L, -50.0L, -50.0L},
+    {50.0L, 50.0L, -50.0L},
+    {-50.0L, 50.0L, -50.0L},
+    {-50.0L, -50.0L, 50.0L},
+    {50.0L, -50.0L, 50.0L},
+    {50.0L, 50.0L, 50.0L},
+    {-50.0L, 50.0L, 50.0L}
+};
+
 class GraphicsWindow;
 class Polygon;
 
@@ -141,22 +152,22 @@ public:
 
     void translateRoll(long double dRoll) {
         //std::cout << roll << std::endl;
-        roll += dRoll;
+        roll = std::fmod(roll + dRoll, 2*PI);
         // new slang when you notice the stripes!
     }
 
     void translatePitch(long double dPitch) {
-        pitch += dPitch;
+        pitch = std::fmod(pitch + dPitch, 2*PI);
     }
 
     void translateYaw(long double dYaw) {
-        yaw += dYaw;
+        yaw = std::fmod(yaw + dYaw, 2*PI);
     }
 
     void translateAngle(long double dRoll, long double dPitch, long double dYaw) {
-        roll += dRoll;
-        pitch += dPitch;
-        yaw += dYaw;
+        roll = std::fmod(roll + dRoll, 2*PI);
+        pitch = std::fmod(pitch + dPitch, 2*PI);
+        yaw = std::fmod(yaw + dYaw, 2*PI);
     }
 
     void translate(long double dx, long double dy, long double dz) {
@@ -179,7 +190,7 @@ private:
 public:
     Camera(long double x = 0, long double y = 0, long double z = 0,
            long double roll = 0, long double pitch = 0, long double yaw = 0,
-           long double movementSpeed = 1, long double lookSpeed = 1.0L/(2*PI),
+           long double movementSpeed = 1, long double lookSpeed = 0.01L,
            long double friction = 0.5, long double vX = 0, long double vY = 0,
            long double vZ = 0)
         : GraphicalObject(x,y,z,roll,pitch,yaw), friction(friction),
@@ -212,18 +223,28 @@ public:
     }
 
     void translateLook(int x, int y) {
-        translateYaw(x * lookSpeed);
-        translatePitch(y * lookSpeed);
+        translatePitch(x * lookSpeed);
+        translateRoll(y * lookSpeed);
+        //std::cout << roll << std::endl;
+        if(roll > PI/2) {
+            setRoll(PI/2);
+        } else if(roll < -PI/2) {
+            setRoll(-PI/2);
+        }
     }
-
 };
 
-
 std::array<long double, 3> rotateVertex(long double x, long double y, long double z, long double roll, long double pitch, long double yaw) {
+    long double cosyaw = cos(yaw);
+    long double cospitch = cos(pitch);
+    long double cosroll = cos(roll);
+    long double sinyaw = sin(yaw);
+    long double sinpitch = sin(pitch);
+    long double sinroll = sin(roll);
     std::array<long double, 3> rotatedVector {
-        x*cos(yaw)*cos(pitch)+y*cos(yaw)*sin(pitch)*sin(roll)-y*sin(yaw)*cos(roll)+z*cos(yaw)*sin(pitch)*cos(roll)+z*sin(yaw)*sin(roll),
-        x*sin(yaw)*cos(pitch)+y*sin(yaw)*sin(pitch)*sin(roll)+y*cos(yaw)*cos(roll)+z*sin(yaw)*sin(pitch)*cos(roll)-z*cos(yaw)*sin(roll),
-        x*-sin(pitch)+y*cos(pitch)*sin(roll)+z*cos(pitch)*cos(roll)
+        x*cosyaw*cospitch+y*cosyaw*sinpitch*sinroll-y*sinyaw*cosroll+z*cosyaw*sinpitch*cosroll+z*sinyaw*sinroll,
+        x*sinyaw*cospitch+y*sinyaw*sinpitch*sinroll+y*cosyaw*cosroll+z*sinyaw*sinpitch*cosroll-z*cosyaw*sinroll,
+        x*-sinpitch+y*cospitch*sinroll+z*cospitch*cosroll
     };
 
     return rotatedVector;
@@ -268,38 +289,61 @@ private:
     Camera camera;
     int prevMouseX;
     int prevMouseY;
+    Color RED;
+    Color GREEN;
+    Color BLUE;
 
 public:
     GraphicsWindow(int screenWidth, int screenHeight, std::vector<Polygon*>* objects, Color backgroundColor, Camera camera)
-    : screenWidth(screenWidth), screenHeight(screenHeight), objects(objects), backgroundColor(backgroundColor), camera(camera), prevMouseX(0), prevMouseY(0) {}
+    : screenWidth(screenWidth), screenHeight(screenHeight), objects(objects), backgroundColor(backgroundColor), camera(camera), prevMouseX(0), prevMouseY(0), RED(Color(255,0,0)), GREEN(Color(0,255,0)), BLUE(Color(0,0,255)) {}
 
 
-    void drawLine(long double x1, long double y1, long double z1, long double x2, long double y2, long double z2, Color& color) {
+    void drawObjectTwoWowTheseFunctionsAreOrganizedVeryPoorlyFixThisLaterPlease(long double x1, long double y1, long double z1, long double x2, long double y2, long double z2, Color& color) {
+        std::array<long double, 3> v1 = rotateVertex(x1 - camera.getX(), y1 - camera.getY(), z1 - camera.getZ(), camera.getRoll(), camera.getPitch(), camera.getYaw());
+        std::array<long double, 3> v2 = rotateVertex(x2 - camera.getX(), y2 - camera.getY(), z2 - camera.getZ(), camera.getRoll(), camera.getPitch(), camera.getYaw());
+
+        long double newX1 = (v1[0] / (v1[2]*0.001));
+        long double newX2 = (v2[0] / (v2[2]*0.001));
+        long double newY1 = (v1[1] / (v1[2]*0.001));
+        long double newY2 = (v2[1] / (v2[2]*0.001));
+        
+        // if line is off screen, do not display
+        if((newX1 < 0 || newX1 > SCREEN_WIDTH) && (newX2 < 0 || newX2 > SCREEN_WIDTH)
+        || (newY1 < 0 || newY1 > SCREEN_HEIGHT) && (newY2 < 0 || newY2 > SCREEN_HEIGHT)
+        || v1[2] < 0 && v2[2] < 0) {
+            return;
+        }
+
         SDL_SetRenderDrawColor(renderer, color.getRed(), color.getGreen(), color.getBlue(), SDL_ALPHA_OPAQUE);
-        SDL_RenderDrawLine(renderer, (int) (x1 - camera.getX()), (int) (y1 - camera.getY()), (int) (x2 - camera.getX()), (int) (y2 - camera.getY()));
+        drawLine((int) (v1[0] / (v1[2]*0.001)), (int) (v1[1] / (v1[2]*0.001)), (int) (v2[0] / (v2[2]*0.001)), (int) (v2[1] / (v2[2]*0.001)), color);
         //SDL_RenderDrawLine(renderer, (int) ((x1 - camera.getX())/(z1 - camera.getZ())), (int) ((y1 - camera.getY())/(z1 - camera.getZ())), (int) ((x2 - camera.getX())/(z2 - camera.getZ())), (int) ((y2 - camera.getY())/(z2 - camera.getZ())));
+    }
+
+    void drawLine(long double x1, long double y1, long double x2, long double y2, Color& color) {
+        SDL_SetRenderDrawColor(renderer, color.getRed(), color.getGreen(), color.getBlue(), SDL_ALPHA_OPAQUE);
+        SDL_RenderDrawLine(renderer, (int) x1, (int) y1, (int) x2, (int) y2);
     }
 
     void drawObject(Polygon& object) {
         std::vector<std::array<long double, 3>> rotatedVertices{};
         std::vector<std::array<long double, 3>>& verticesPointer = object.getVertices();
         for(int i = 0; i < verticesPointer.size(); i++) {
-            //std::array<long double, 3> tempVerts = rotateX(verticesPointer[i][0],verticesPointer[i][1],verticesPointer[i][2],object.getRoll());
-            //tempVerts = rotateY(tempVerts[0],tempVerts[1],tempVerts[2],object.getPitch());
-            //tempVerts = rotateZ(tempVerts[0],tempVerts[1],tempVerts[2],object.getYaw());
-
             std::array<long double, 3> tempVerts = rotateVertex(verticesPointer[i][0],verticesPointer[i][1],verticesPointer[i][2],object.getRoll(),object.getPitch(),object.getYaw());
             rotatedVertices.push_back(tempVerts);
         }
         for(int i = 0; i < rotatedVertices.size(); i++) {
             for(int j = 0; j < rotatedVertices.size(); j++) {
-                this->drawLine(rotatedVertices[i][0] + object.getX(), rotatedVertices[i][1] + object.getY(), rotatedVertices[i][2] + object.getZ(), rotatedVertices[j][0] + object.getX(), rotatedVertices[j][1] + object.getY(), rotatedVertices[j][2] + object.getZ(), object.getColor());
+                this->drawObjectTwoWowTheseFunctionsAreOrganizedVeryPoorlyFixThisLaterPlease(rotatedVertices[i][0] + object.getX(), rotatedVertices[i][1] + object.getY(), rotatedVertices[i][2] + object.getZ(), rotatedVertices[j][0] + object.getX(), rotatedVertices[j][1] + object.getY(), rotatedVertices[j][2] + object.getZ(), object.getColor());
             }
         }
     }
 
     bool isOpen() {
         return !quit;
+    }
+
+    void addObject(Polygon* object) {
+        objects->push_back(object);
     }
 
     int open() {
@@ -349,28 +393,50 @@ public:
                 prevMouseX = e.motion.x;
                 prevMouseY = e.motion.y;
             }
+            if (e.type == SDL_KEYDOWN) {
+                SDL_Keycode keyPressed = e.key.keysym.sym;
+                if (keyPressed == SDLK_g) {
+                    Polygon* poly = new Polygon(camera.getX(), camera.getY(), camera.getZ(), cubeVerts);
+                    addObject(poly);
+                }
+            }
         }
 
         const Uint8* keystates = SDL_GetKeyboardState(NULL);
 
         if(keystates[SDL_SCANCODE_LEFT]) {
             camera.translateVX(LEFT);
+            //camera.translateVY();
+            //camera.translateVZ();
         }
         if(keystates[SDL_SCANCODE_RIGHT]) {
             camera.translateVX(RIGHT);
         }
         if(keystates[SDL_SCANCODE_UP]) {
             camera.translateVY(UP);
+            //camera.translateVY(camera.getPitch() / (PI/2.0L));
+            //camera.translateVX((camera.getRoll() - 180) / (PI));
+            //camera.translateVZ((camera.getYaw() - 180) / (PI));
         }
         if(keystates[SDL_SCANCODE_DOWN]) {
             camera.translateVY(DOWN);
         }
-        
+        if(keystates[SDL_SCANCODE_Q]) {
+            destroy();
+        }
+
         for(int i = 0; i < objects->size(); i++) {
             (*objects)[i]->draw(*this);
         }
 
         camera.update();
+
+        std::array<long double, 3> rotatedXVertex = rotateVertex(50,0,0,camera.getRoll(), camera.getPitch(), camera.getYaw());
+        std::array<long double, 3> rotatedYVertex = rotateVertex(0,50,0,camera.getRoll(), camera.getPitch(), camera.getYaw());
+        std::array<long double, 3> rotatedZVertex = rotateVertex(0,0,50,camera.getRoll(), camera.getPitch(), camera.getYaw());
+        drawLine(60,50,rotatedXVertex[0]+60, rotatedXVertex[1]+60, RED);
+        drawLine(60,50,rotatedYVertex[0]+60, rotatedYVertex[1]+60, GREEN);
+        drawLine(60,50,rotatedZVertex[0]+60, rotatedZVertex[1]+60, BLUE);
 
         SDL_RenderPresent(renderer);
 
@@ -388,6 +454,7 @@ public:
     }
 
     void destroy() {
+        quit=true;
         SDL_DestroyRenderer(renderer);
         SDL_DestroyWindow(window);
         SDL_Quit();
@@ -397,7 +464,7 @@ public:
 
 void Polygon::draw(GraphicsWindow& graphics) {
 		graphics.drawObject(*this);
-	}
+}
 
 class RegularPolygon : public Polygon {
 protected:
@@ -431,17 +498,6 @@ void setPixel(SDL_Renderer* renderer, long double x, long double y, Color color)
 
 int main()
 {
-
-    std::vector<std::array<long double, 3>> cubeVerts {
-        {-50.0L, -50.0L, -50.0L},
-        {50.0L, -50.0L, -50.0L},
-        {50.0L, 50.0L, -50.0L},
-        {-50.0L, 50.0L, -50.0L},
-        {-50.0L, -50.0L, 50.0L},
-        {50.0L, -50.0L, 50.0L},
-        {50.0L, 50.0L, 50.0L},
-        {-50.0L, 50.0L, 50.0L}
-    };
     std::vector<std::array<long double, 3>> squareVerts {
             {0.0L, 0.0L, 0.0L},
             {0.0L, -50.0L, 0.0L},
@@ -456,12 +512,15 @@ int main()
     GraphicsWindow window(800, 600, &objects, Color(255,255,255), Camera());
     
     window.open();
-
+    int direction = 1;
+    long double speed = 0.001;
     while(window.isOpen()) {
-        test.translateRoll(0.001);
+        //test.translateRoll(speed);
+        //speed *= 1.0001;
         hexagon.translatePitch(-0.005);
-        cube.translateAngle(0.001,0.001,0.001);
-        cube.translate(0.1,0,0);
+        //cube.translateAngle(0.001,0.001,0.001);
+        //if(cube.getX() > 600 || cube.getX() < 200) direction *= -1;
+        //cube.translate(direction * 0.1, 0, 0);
         window.refresh();
     }
 }
