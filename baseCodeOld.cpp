@@ -1,4 +1,4 @@
-// g++ -o baseCode baseCode.cpp -lSDL2 -lGL -lGLU -lglut -I/usr/include/SDL2 -L/usr/lib
+// g++ -o baseCodeOld baseCodeOld.cpp -lSDL2 -lGL -lGLU -lglut -I/usr/include/SDL2 -L/usr/lib
 
 #include <SDL2/SDL.h>
 #include <iostream>
@@ -7,7 +7,6 @@
 #include <math.h>
 #include <array>
 #include <chrono>
-#include <unordered_map>
 
 #define PI 3.141592653589793238462643383279502884L
 #define LEFT -1
@@ -15,7 +14,9 @@
 #define RIGHT 1
 #define DOWN -1
 
-// hey can we change pixel map being array to hash map pls ty
+
+const int SCREEN_WIDTH = 800;
+const int SCREEN_HEIGHT = 600;
 
 
 const std::vector<std::array<long double, 3>> cubeVerts {
@@ -74,12 +75,6 @@ public:
     }
 
     void setBlue(int blue) {
-        this->blue = blue;
-    }
-
-    void setColor(int red, int green, int blue) {
-        this->red = red;
-        this->green = green;
         this->blue = blue;
     }
 };
@@ -206,7 +201,7 @@ public:
           vX(vX), vY(vY), vZ(vZ),
           timeWhenLastUpdated(std::chrono::high_resolution_clock::now()) {}
 
-    void updatePosition() {
+    void update() {
         long double timeSinceLastFrame = std::chrono::duration_cast<std::chrono::nanoseconds>
             (std::chrono::high_resolution_clock::now() - timeWhenLastUpdated).count() / 100000000.0L;
         x += vX * timeSinceLastFrame;
@@ -250,7 +245,7 @@ std::array<long double, 3> rotateVertex(long double x, long double y, long doubl
     long double sinpitch = sin(pitch);
     long double sinroll = sin(roll);
 
-    // dot product of vector [x,y,z] and product of rotation matrix Z * rotation matrix Y * rotation matrix X
+    // dot product of product of rotation matrix Z * rotation matrix Y * rotation matrix X and vector [x,y,z]
     std::array<long double, 3> rotatedVector {
         x*cosyaw*cospitch+y*cosyaw*sinpitch*sinroll-y*sinyaw*cosroll+z*cosyaw*sinpitch*cosroll+z*sinyaw*sinroll,
         x*sinyaw*cospitch+y*sinyaw*sinpitch*sinroll+y*cosyaw*cosroll+z*sinyaw*sinpitch*cosroll-z*cosyaw*sinroll,
@@ -320,37 +315,42 @@ private:
     Color RED;
     Color GREEN;
     Color BLUE;
-    //std::vector<std::vector<Color>> pixels;
-    //std::vector<std::vector<int>> pixelsZ;
-    std::unordered_map<std::string, int> pixelDepth;
 
 public:
     GraphicsWindow(int screenWidth, int screenHeight, std::vector<Polyhedron*>* objects, Color backgroundColor, Camera camera)
     : screenWidth(screenWidth), screenHeight(screenHeight), objects(objects), backgroundColor(backgroundColor), camera(camera), RED(Color(255,0,0)), GREEN(Color(0,255,0)), BLUE(Color(0,0,255)) {}
 
-    void setPixel(int x, int y, int z, Color color) {
-        // dont bother with off-screen pixels
-        if(x < 0 || x > screenWidth - 1 || y < 0 || y > screenHeight - 1 || z < 0) {
+
+    void drawObjectTwoWowTheseFunctionsAreOrganizedVeryPoorlyFixThisLaterPlease(long double x1, long double y1, long double z1, long double x2, long double y2, long double z2, Color& color) {
+        std::array<long double, 3> v1 = rotateVertex(x1 - camera.getX(), y1 - camera.getY(), z1 - camera.getZ(), camera.getRoll(), camera.getPitch(), camera.getYaw());
+        std::array<long double, 3> v2 = rotateVertex(x2 - camera.getX(), y2 - camera.getY(), z2 - camera.getZ(), camera.getRoll(), camera.getPitch(), camera.getYaw());
+
+        long double newX1 = (v1[0] / (v1[2]*0.001));
+        long double newX2 = (v2[0] / (v2[2]*0.001));
+        long double newY1 = (v1[1] / (v1[2]*0.001));
+        long double newY2 = (v2[1] / (v2[2]*0.001));
+         
+        // if line is off screen, do not display
+        if((newX1 < 0 || newX1 > SCREEN_WIDTH) && (newX2 < 0 || newX2 > SCREEN_WIDTH)
+        || (newY1 < 0 || newY1 > SCREEN_HEIGHT) && (newY2 < 0 || newY2 > SCREEN_HEIGHT)
+        || v1[2] < 0 && v2[2] < 0) {
             return;
         }
-        std::string key = std::to_string(x) + " " + std::to_string(y);
-        // the closest pixel to the camera gets drawn
-        if(pixelDepth.find(key) != pixelDepth.end() && pixelDepth[key] < z) {
-            return;
-        }
+
         SDL_SetRenderDrawColor(renderer, color.getRed(), color.getGreen(), color.getBlue(), SDL_ALPHA_OPAQUE);
-        SDL_RenderDrawPoint(renderer, x, y);
-        //pixels[y][x].setColor(color.getRed(), color.getGreen(), color.getBlue());
-        pixelDepth[key] = z;   
+        drawLine((int) newX1, (int) newY1, (int) newX2, (int) newY2, color);
+        //SDL_RenderDrawLine(renderer, (int) ((x1 - camera.getX())/(z1 - camera.getZ())), (int) ((y1 - camera.getY())/(z1 - camera.getZ())), (int) ((x2 - camera.getX())/(z2 - camera.getZ())), (int) ((y2 - camera.getY())/(z2 - camera.getZ())));
     }
 
-    void clearScreen() {
-        SDL_SetRenderDrawColor(renderer, backgroundColor.getRed(), backgroundColor.getGreen(), backgroundColor.getBlue(), 255);
-        SDL_RenderClear(renderer);
-        pixelDepth.clear();
+    void setPixel(long double x, long double y, Color color) {
+
+        SDL_SetRenderDrawColor(renderer, color.getRed(), color.getGreen(), color.getBlue(), SDL_ALPHA_OPAQUE);
+        SDL_RenderDrawPoint(renderer, (int) x, (int) y);
     }
 
-    void setLine(long double x1, long double y1, long double z1, long double x2, long double y2, long double z2, Color& color) {
+    void drawLine(long double x1, long double y1, long double x2, long double y2, Color& color) {
+        long double z1 = 0;
+        long double z2 = 0;
         if((int) (x1 + 0.5) == (int) (x2 + 0.5)) {
             if(y1 > y2) {
                 long double tempX = x1;
@@ -368,7 +368,7 @@ public:
             long double curZ = z1;
             for(int i = y1; i < y2; i++) {
                 curZ += yzSlope;
-                setPixel(x1, i, (int) (curZ + 0.5), color);
+                setPixel(x1, i, color);
             }
             return;
         }
@@ -391,7 +391,7 @@ public:
             for(int i = (int) (x1 + 0.5); i < x2; i++) {
                 curY += xySlope;
                 curZ += xzSlope;
-                setPixel(i, (int) (curY + 0.5), (int) (curZ + 0.5), color);
+                setPixel(i, (int) (curY + 0.5), color);
             }
             return;
         }
@@ -413,25 +413,21 @@ public:
         for(int i = (int) (y1 + 0.5); i < y2; i++) {
             curX += yxSlope;
             curZ += yzSlope;
-            setPixel((int) (curX + 0.5), i, (int) (curZ + 0.5), color);
+            setPixel((int) (curX + 0.5), i, color);
         }
         return;
     }
 
-    void setScreenCoordinates(Polyhedron& object) {
+    void drawObject(Polyhedron& object) {
         std::vector<std::array<long double, 3>> rotatedVertices{};
         std::vector<std::array<long double, 3>>& verticesPointer = object.getVertices();
         for(int i = 0; i < verticesPointer.size(); i++) {
             std::array<long double, 3> tempVerts = rotateVertex(verticesPointer[i][0],verticesPointer[i][1],verticesPointer[i][2],object.getRoll(),object.getPitch(),object.getYaw());
-            tempVerts = rotateVertex(tempVerts[0] + object.getX() - camera.getX(), tempVerts[1] + object.getY() - camera.getY(), tempVerts[2] + object.getZ() - camera.getZ(), camera.getRoll(), camera.getPitch(), camera.getYaw());
-            tempVerts[0] = tempVerts[0] / (tempVerts[2]*0.001);
-            tempVerts[1] = tempVerts[1] / (tempVerts[2]*0.001);
             rotatedVertices.push_back(tempVerts);
         }
         std::vector<int>& vertsOrderPointer = object.getVertsOrder();
         for(int i = 0; i < vertsOrderPointer.size() - 1; i++) {
-            setLine(rotatedVertices[vertsOrderPointer[i]][0], rotatedVertices[vertsOrderPointer[i]][1], rotatedVertices[vertsOrderPointer[i]][2], rotatedVertices[vertsOrderPointer[i+1]][0], rotatedVertices[vertsOrderPointer[i+1]][1], rotatedVertices[vertsOrderPointer[i+1]][2], object.getColor());
-            
+            this->drawObjectTwoWowTheseFunctionsAreOrganizedVeryPoorlyFixThisLaterPlease(rotatedVertices[vertsOrderPointer[i]][0] + object.getX(), rotatedVertices[vertsOrderPointer[i]][1] + object.getY(), rotatedVertices[vertsOrderPointer[i]][2] + object.getZ(), rotatedVertices[vertsOrderPointer[i+1]][0] + object.getX(), rotatedVertices[vertsOrderPointer[i+1]][1] + object.getY(), rotatedVertices[vertsOrderPointer[i+1]][2] + object.getZ(), object.getColor());
         }
     }
 
@@ -465,6 +461,7 @@ public:
             return 1;
         }
 
+        
         quit = false;
         prevTicks = SDL_GetTicks();
         frameCount = 0;
@@ -478,7 +475,8 @@ public:
             this->destroy();
             return 1;
         }
-        clearScreen();
+        SDL_SetRenderDrawColor(renderer, backgroundColor.getRed(), backgroundColor.getGreen(), backgroundColor.getBlue(), 255);
+        SDL_RenderClear(renderer);
         while (SDL_PollEvent(&e) != 0) {
             if (e.type == SDL_QUIT) {
                 quit = true;
@@ -519,17 +517,17 @@ public:
         }
 
         for(int i = 0; i < objects->size(); i++) {
-            setScreenCoordinates(*((*objects)[i]));
+            (*objects)[i]->draw(*this);
         }
 
-        camera.updatePosition();
+        camera.update();
 
         std::array<long double, 3> rotatedXVertex = rotateVertex(50,0,0,camera.getRoll(), camera.getPitch(), camera.getYaw());
         std::array<long double, 3> rotatedYVertex = rotateVertex(0,50,0,camera.getRoll(), camera.getPitch(), camera.getYaw());
         std::array<long double, 3> rotatedZVertex = rotateVertex(0,0,50,camera.getRoll(), camera.getPitch(), camera.getYaw());
-        setLine(60,50,60,rotatedXVertex[0]+60, rotatedXVertex[1]+60, rotatedXVertex[2]+60, RED);
-        setLine(60,50,60,rotatedYVertex[0]+60, rotatedYVertex[1]+60, rotatedYVertex[2]+60, GREEN);
-        setLine(60,50,60,rotatedZVertex[0]+60, rotatedZVertex[1]+60, rotatedZVertex[2]+60, BLUE);
+        drawLine(60,50,rotatedXVertex[0]+60, rotatedXVertex[1]+60, RED);
+        drawLine(60,50,rotatedYVertex[0]+60, rotatedYVertex[1]+60, GREEN);
+        drawLine(60,50,rotatedZVertex[0]+60, rotatedZVertex[1]+60, BLUE);
 
         SDL_RenderPresent(renderer);
 
@@ -553,6 +551,11 @@ public:
         SDL_Quit();
     }
 };
+
+
+void Polyhedron::draw(GraphicsWindow& graphics) {
+		graphics.drawObject(*this);
+}
 
 class RegularPolygon : public Polyhedron {
 protected:
@@ -586,9 +589,6 @@ int main()
     Polyhedron test(200.0L, 200.0L, 200.0L, squareVerts, RED);
     Polyhedron cube(400.0L, 300.0L, 100.0L, cubeVerts, Color(), cubeVertsOrder);
     RegularPolygon hexagon(300, 300, 200, 8, 50, Color(0, 255, 255));
-
-    //Polyhedron floor(0,350,0,std::vector<std::array<long double, 3>>{{-3000,0,-3000},{-3000,0,3000},{3000,0,3000},{3000,0,-3000}});
-
     std::vector<Polyhedron*> objects{&test, &hexagon, &cube};
     GraphicsWindow window(800, 600, &objects, Color(255,255,255), Camera(0,0,-1000,0,0,0));
     
