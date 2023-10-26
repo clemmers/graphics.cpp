@@ -15,21 +15,27 @@
 #define RIGHT 1
 #define DOWN -1
 
-// hey can we change pixel map being array to hash map pls ty
-
-
 const std::vector<std::array<long double, 3>> cubeVerts {
-    {-50.0L, -50.0L, -50.0L},
-    {-50.0L, 50.0L, -50.0L},
-    {-50.0L, 50.0L, 50.0L},
-    {-50.0L, -50.0L, 50.0L},
-    {50.0L, -50.0L, -50.0L},
-    {50.0L, 50.0L, -50.0L},
-    {50.0L, 50.0L, 50.0L},
-    {50.0L, -50.0L, 50.0L}
+    {-50.0L, -50.0L, -50.0L}, // 0
+    {-50.0L, 50.0L, -50.0L},  // 1
+    {-50.0L, 50.0L, 50.0L},   // 2
+    {-50.0L, -50.0L, 50.0L},  // 3
+    {50.0L, -50.0L, -50.0L},  // 4
+    {50.0L, 50.0L, -50.0L},   // 5
+    {50.0L, 50.0L, 50.0L},    // 6
+    {50.0L, -50.0L, 50.0L}    // 7
 };
 
 std::vector<int> cubeVertsOrder {0,1,2,3,0,4,5,6,7,4,0,1,5,6,2,3,7};
+
+std::vector<std::vector<int>> cubeFaces {
+    {0,1,2,3,0},
+    {0,4,5,1,0},
+    {4,5,6,7,4},
+    {7,6,2,3,7},
+    {1,5,6,2,1},
+    {0,4,7,3,0}
+};
 
 class GraphicsWindow;
 class Polyhedron;
@@ -83,16 +89,6 @@ public:
         this->blue = blue;
     }
 };
-
-std::vector<std::array<long double, 3>> calculateRegularPolygonVertices (int numSides, long double circumradius) {
-    std::vector<std::array<long double, 3>> vertices {};
-        long double angle = 2 * PI / numSides;
-        for (int i = 0; i < numSides; i++)
-        {
-            vertices.push_back(std::array<long double, 3>{circumradius * cos(i * angle), circumradius * sin(i * angle), 0});
-        }
-        return vertices;
-}
 
 class GraphicalObject {
 protected:
@@ -160,22 +156,29 @@ public:
 
     void translateRoll(long double dRoll) {
         //std::cout << roll << std::endl;
-        roll = std::fmod(roll + dRoll, 2*PI);
+        //roll = std::fmod(roll + dRoll, 2*PI);
+        roll += dRoll;
         // new slang when you notice the stripes!
     }
 
     void translatePitch(long double dPitch) {
-        pitch = std::fmod(pitch + dPitch, 2*PI);
+        //pitch = std::fmod(pitch + dPitch, 2*PI);
+        pitch += dPitch;
     }
 
     void translateYaw(long double dYaw) {
-        yaw = std::fmod(yaw + dYaw, 2*PI);
+        //yaw = std::fmod(yaw + dYaw, 2*PI);
+        yaw += dYaw;
     }
 
     void translateAngle(long double dRoll, long double dPitch, long double dYaw) {
-        roll = std::fmod(roll + dRoll, 2*PI);
-        pitch = std::fmod(pitch + dPitch, 2*PI);
-        yaw = std::fmod(yaw + dYaw, 2*PI);
+        //roll = std::fmod(roll + dRoll, 2*PI);
+        //pitch = std::fmod(pitch + dPitch, 2*PI);
+        //yaw = std::fmod(yaw + dYaw, 2*PI);
+
+        roll += dRoll;
+        pitch += dPitch;
+        yaw += dYaw;
     }
 
     void translate(long double dx, long double dy, long double dz) {
@@ -250,7 +253,7 @@ std::array<long double, 3> rotateVertex(long double x, long double y, long doubl
     long double sinpitch = sin(pitch);
     long double sinroll = sin(roll);
 
-    // dot product of vector [x,y,z] and product of rotation matrix Z * rotation matrix Y * rotation matrix X
+    // dot product of product of rotation matrix Z * rotation matrix Y * rotation matrix X and vector [x,y,z]
     std::array<long double, 3> rotatedVector {
         x*cosyaw*cospitch+y*cosyaw*sinpitch*sinroll-y*sinyaw*cosroll+z*cosyaw*sinpitch*cosroll+z*sinyaw*sinroll,
         x*sinyaw*cospitch+y*sinyaw*sinpitch*sinroll+y*cosyaw*cosroll+z*sinyaw*sinpitch*cosroll-z*cosyaw*sinroll,
@@ -264,17 +267,26 @@ class Polyhedron : public GraphicalObject {
 protected:
 	std::vector<std::array<long double, 3>> vertices;
     std::vector<int> vertsOrder;
+    std::vector<std::vector<int>> faces;
     Color color;
 
 public:
-	Polyhedron(long double x = 0, long double y = 0, long double z = 0, std::vector<std::array<long double, 3>> vertices = {}, Color color = Color(), std::vector<int> vertsOrder = {}, long double roll = 0, long double pitch = 0, long double yaw = 0)
-    : GraphicalObject(x, y, z, roll, pitch, yaw), vertices(vertices), vertsOrder(verifyVertsOrder(vertsOrder)), color(color) {}
+	Polyhedron(long double x = 0, long double y = 0, long double z = 0, std::vector<std::array<long double, 3>> vertices = {}, Color color = Color(), std::vector<std::vector<int>> faces = {}, std::vector<int> vertsOrder = {}, long double roll = 0, long double pitch = 0, long double yaw = 0)
+    : GraphicalObject(x, y, z, roll, pitch, yaw), vertices(vertices), vertsOrder(verifyVertsOrder(vertsOrder)), faces(verifyFaces(faces)), color(color) {}
 
     std::vector<int> verifyVertsOrder(std::vector<int> vertsOrder) {
         if(vertsOrder.size() != 0) {
             return vertsOrder;
         }
         return defaultVertsOrder();
+    }
+
+    std::vector<std::vector<int>> verifyFaces(std::vector<std::vector<int>> faces) {
+        if(faces.size() != 0) {
+            return faces;
+        }
+        faces.push_back(defaultVertsOrder());
+        return faces;
     }
 
     std::vector<int> defaultVertsOrder() {
@@ -285,8 +297,6 @@ public:
         vertsOrder.push_back(0);
         return vertsOrder;
     }
-
-    void draw(GraphicsWindow& graphics);
 
 
     Color& getColor() {
@@ -300,6 +310,78 @@ public:
     std::vector<std::array<long double, 3>>& getVertices() {
         return vertices;
     }
+};
+
+class RegularPolygon : public Polyhedron {
+protected:
+    int numSides;
+    long double circumradius;
+
+    std::vector<std::array<long double, 3>> calculateRegularPolygonVertices(int numSides, long double circumradius) {
+        std::vector<std::array<long double, 3>> vertices {};
+        long double angle = 2 * PI / numSides;
+        for (int i = 0; i < numSides; i++)
+        {
+            vertices.push_back(std::array<long double, 3>{circumradius * cos(i * angle), circumradius * sin(i * angle), 0});
+        }
+        return vertices;
+    }
+
+public:
+    RegularPolygon(long double x = 0, long double y = 0, long double z = 0, int numSides = 5, long double circumradius = 50, Color color = Color())
+    : numSides(numSides), circumradius(circumradius), Polyhedron(x, y, z, calculateRegularPolygonVertices(numSides, circumradius), color) {}
+
+    long double getCircumradius() const {
+        return circumradius;
+    }
+
+    int getNumSides() const {
+        return numSides;
+    }
+};
+
+
+class Cuboid : public Polyhedron {
+protected:
+    long double width;
+    long double height;
+    long double depth;
+
+    
+    std::vector<std::array<long double, 3>> calculateCuboidVertices(long double width, long double height, long double depth) {
+        long double halfWidth = width/2.0L;
+        long double halfHeight = height/2.0L;
+        long double halfDepth = depth/2.0L;
+        
+        std::vector<std::array<long double, 3>> cuboidVerts {
+            {-halfWidth, -halfHeight, -halfDepth}, // 0
+            {-halfWidth,  halfHeight, -halfDepth}, // 1
+            {-halfWidth,  halfHeight,  halfDepth}, // 2
+            {-halfWidth, -halfHeight,  halfDepth}, // 3
+            { halfWidth, -halfHeight, -halfDepth}, // 4
+            { halfWidth,  halfHeight, -halfDepth}, // 5
+            { halfWidth,  halfHeight,  halfDepth}, // 6
+            { halfWidth, -halfHeight,  halfDepth}  // 7
+        };
+
+        return cuboidVerts;
+    };
+
+
+
+
+public:
+    Cuboid(long double x = 0, long double y = 0, long double z = 0, long double width = 100, long double height = 100, long double depth = 100, Color color = Color())
+    : width(width), height(height), depth(depth), Polyhedron(x, y, z, calculateCuboidVertices(width, height, depth), color, std::vector<std::vector<int>> {{0,1,2,3,0},{0,4,5,1,0},{4,5,6,7,4},{7,6,2,3,7},{1,5,6,2,1},{0,4,7,3,0}}, std::vector<int> {0,1,2,3,0,4,5,6,7,4,0,1,5,6,2,3,7}) {}
+};
+
+class Cube : public Cuboid {
+protected:
+    long double circumradius;
+    
+public:
+    Cube(long double x = 0, long double y = 0, long double z = 0, long double circumradius = 100, Color color = Color())
+    : circumradius(circumradius), Cuboid(x,y,z,circumradius,circumradius,circumradius,color) {};
 };
 
 
@@ -490,7 +572,7 @@ public:
             if (e.type == SDL_KEYDOWN) {
                 SDL_Keycode keyPressed = e.key.keysym.sym;
                 if (keyPressed == SDLK_g) {
-                    Polyhedron* poly = new Polyhedron(camera.getX(), camera.getY() + 300, camera.getZ(), cubeVerts, Color(), cubeVertsOrder);
+                    Cube* poly = new Cube(camera.getX(), camera.getY() + 300, camera.getZ(), 100);
                     addObject(poly);
                 }
             }
@@ -554,23 +636,8 @@ public:
     }
 };
 
-class RegularPolygon : public Polyhedron {
-protected:
-    int numSides;
-    long double circumradius;
 
-public:
-    RegularPolygon(long double x = 0, long double y = 0, long double z = 0, int numSides = 5, long double circumradius = 50, Color color = Color())
-    : numSides(numSides), circumradius(circumradius), Polyhedron(x, y, z, calculateRegularPolygonVertices(numSides, circumradius), color) {}
 
-    long double getCircumradius() const {
-        return circumradius;
-    }
-
-    int getNumSides() const {
-        return numSides;
-    }
-};
 
 int main()
 {
@@ -584,21 +651,21 @@ int main()
 
     Color RED = Color(255,0,0);
     Polyhedron test(200.0L, 200.0L, 200.0L, squareVerts, RED);
-    Polyhedron cube(400.0L, 300.0L, 100.0L, cubeVerts, Color(), cubeVertsOrder);
+    Cuboid cube(400, 300, 100, 100,100,100);
     RegularPolygon hexagon(300, 300, 200, 8, 50, Color(0, 255, 255));
 
     //Polyhedron floor(0,350,0,std::vector<std::array<long double, 3>>{{-3000,0,-3000},{-3000,0,3000},{3000,0,3000},{3000,0,-3000}});
 
-    std::vector<Polyhedron*> objects{&test, &hexagon, &cube};
-    GraphicsWindow window(800, 600, &objects, Color(255,255,255), Camera(0,0,-1000,0,0,0));
+    std::vector<Polyhedron*> objects{&test, &hexagon, &cube/*, &floor*/};
+    GraphicsWindow window(800, 400, &objects, Color(255,255,255), Camera(0,0,-1000,0,0,0));
     
     window.open();
     int direction = 1;
     long double speed = 0.001;
     while(window.isOpen()) {
-        //test.translateRoll(speed);
-        //speed *= 1.0001;
-        hexagon.translatePitch(-0.005);
+        test.translateRoll(speed);
+        speed *= 1.0001;
+        //hexagon.translatePitch(-0.005);
         //cube.translateAngle(0.001,0.001,0.001);
         //if(cube.getX() > 600 || cube.getX() < 200) direction *= -1;
         //cube.translate(direction * 0.1, 0, 0);
