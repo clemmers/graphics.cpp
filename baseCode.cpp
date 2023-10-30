@@ -8,12 +8,14 @@
 #include <array>
 #include <chrono>
 #include <unordered_map>
+#include <utility>
 
 #define PI 3.141592653589793238462643383279502884L
 #define LEFT -1
 #define UP 1
 #define RIGHT 1
 #define DOWN -1
+
 
 const std::vector<std::array<long double, 3>> cubeVerts {
     {-50.0L, -50.0L, -50.0L}, // 0
@@ -39,6 +41,29 @@ std::vector<std::vector<int>> cubeFaces {
 
 class GraphicsWindow;
 class Polyhedron;
+
+
+
+/* hash function from geeks for geeks
+thx bby i will use this
+https://www.geeksforgeeks.org/how-to-create-an-unordered_map-of-pairs-in-c/ */
+struct hash_pair {
+    template <class T1, class T2>
+    size_t operator()(const std::pair<T1, T2>& p) const
+    {
+        auto hash1 = std::hash<T1>{}(p.first);
+        auto hash2 = std::hash<T2>{}(p.second);
+ 
+        if (hash1 != hash2) {
+            return hash1 ^ hash2;              
+        }
+         
+        // If hash1 == hash2, their XOR is zero.
+          return hash1;
+    }
+};
+
+
 
 class Color {
 private:
@@ -268,11 +293,12 @@ protected:
 	std::vector<std::array<long double, 3>> vertices;
     std::vector<int> vertsOrder;
     std::vector<std::vector<int>> faces;
+    Color outlineColor;
     Color color;
 
 public:
-	Polyhedron(long double x = 0, long double y = 0, long double z = 0, std::vector<std::array<long double, 3>> vertices = {}, Color color = Color(), std::vector<std::vector<int>> faces = {}, std::vector<int> vertsOrder = {}, long double roll = 0, long double pitch = 0, long double yaw = 0)
-    : GraphicalObject(x, y, z, roll, pitch, yaw), vertices(vertices), vertsOrder(verifyVertsOrder(vertsOrder)), faces(verifyFaces(faces)), color(color) {}
+	Polyhedron(long double x = 0, long double y = 0, long double z = 0, std::vector<std::array<long double, 3>> vertices = {}, Color color = Color(255,0,220), Color outlineColor = Color(), std::vector<std::vector<int>> faces = {}, std::vector<int> vertsOrder = {}, long double roll = 0, long double pitch = 0, long double yaw = 0)
+    : GraphicalObject(x, y, z, roll, pitch, yaw), vertices(vertices), vertsOrder(verifyVertsOrder(vertsOrder)), faces(verifyFaces(faces)), color(color), outlineColor(outlineColor) {}
 
     std::vector<int> verifyVertsOrder(std::vector<int> vertsOrder) {
         if(vertsOrder.size() != 0) {
@@ -299,12 +325,20 @@ public:
     }
 
 
+    Color& getOutlineColor() {
+        return outlineColor;
+    }
+
     Color& getColor() {
         return color;
     }
 
     std::vector<int>& getVertsOrder() {
         return vertsOrder;
+    }
+
+    std::vector<std::vector<int>>& getFaces() {
+        return faces;
     }
 
     std::vector<std::array<long double, 3>>& getVertices() {
@@ -328,8 +362,8 @@ protected:
     }
 
 public:
-    RegularPolygon(long double x = 0, long double y = 0, long double z = 0, int numSides = 5, long double circumradius = 50, Color color = Color())
-    : numSides(numSides), circumradius(circumradius), Polyhedron(x, y, z, calculateRegularPolygonVertices(numSides, circumradius), color) {}
+    RegularPolygon(long double x = 0, long double y = 0, long double z = 0, int numSides = 5, long double circumradius = 50, Color color = Color(255,0,220), Color outlineColor = Color())
+    : numSides(numSides), circumradius(circumradius), Polyhedron(x, y, z, calculateRegularPolygonVertices(numSides, circumradius), color, outlineColor) {}
 
     long double getCircumradius() const {
         return circumradius;
@@ -371,8 +405,8 @@ protected:
 
 
 public:
-    Cuboid(long double x = 0, long double y = 0, long double z = 0, long double width = 100, long double height = 100, long double depth = 100, Color color = Color())
-    : width(width), height(height), depth(depth), Polyhedron(x, y, z, calculateCuboidVertices(width, height, depth), color, std::vector<std::vector<int>> {{0,1,2,3,0},{0,4,5,1,0},{4,5,6,7,4},{7,6,2,3,7},{1,5,6,2,1},{0,4,7,3,0}}, std::vector<int> {0,1,2,3,0,4,5,6,7,4,0,1,5,6,2,3,7}) {}
+    Cuboid(long double x = 0, long double y = 0, long double z = 0, long double width = 100, long double height = 100, long double depth = 100, Color color = Color(255,0,220), Color outlineColor = Color())
+    : width(width), height(height), depth(depth), Polyhedron(x, y, z, calculateCuboidVertices(width, height, depth), color, outlineColor, std::vector<std::vector<int>> {{0,1,2,3,0},{0,4,5,1,0},{4,5,6,7,4},{7,6,2,3,7},{1,5,6,2,1},{0,4,7,3,0}}, std::vector<int> {0,1,2,3,0,4,5,6,7,4,0,1,5,6,2,3,7}) {}
 };
 
 class Cube : public Cuboid {
@@ -380,8 +414,8 @@ protected:
     long double circumradius;
     
 public:
-    Cube(long double x = 0, long double y = 0, long double z = 0, long double circumradius = 100, Color color = Color())
-    : circumradius(circumradius), Cuboid(x,y,z,circumradius,circumradius,circumradius,color) {};
+    Cube(long double x = 0, long double y = 0, long double z = 0, long double circumradius = 100, Color color = Color(255,0,220), Color outlineColor = Color())
+    : circumradius(circumradius), Cuboid(x,y,z,circumradius,circumradius,circumradius,color,outlineColor) {};
 };
 
 
@@ -402,15 +436,14 @@ private:
     Color RED;
     Color GREEN;
     Color BLUE;
-    //std::vector<std::vector<Color>> pixels;
-    //std::vector<std::vector<int>> pixelsZ;
-    std::unordered_map<std::string, int> pixelDepth;
+    std::unordered_map<std::string, long double> pixelDepth;
+    bool isWireframe;
 
 public:
     GraphicsWindow(int screenWidth, int screenHeight, std::vector<Polyhedron*>* objects, Color backgroundColor, Camera camera)
-    : screenWidth(screenWidth), screenHeight(screenHeight), objects(objects), backgroundColor(backgroundColor), camera(camera), RED(Color(255,0,0)), GREEN(Color(0,255,0)), BLUE(Color(0,0,255)) {}
+    : screenWidth(screenWidth), screenHeight(screenHeight), objects(objects), backgroundColor(backgroundColor), camera(camera), RED(Color(255,0,0)), GREEN(Color(0,255,0)), BLUE(Color(0,0,255)), isWireframe(false) {}
 
-    void setPixel(int x, int y, int z, Color color) {
+    void setPixel(int x, int y, long double z, Color color) {
         // dont bother with off-screen pixels
         if(x < 0 || x > screenWidth - 1 || y < 0 || y > screenHeight - 1 || z < 0) {
             return;
@@ -422,8 +455,7 @@ public:
         }
         SDL_SetRenderDrawColor(renderer, color.getRed(), color.getGreen(), color.getBlue(), SDL_ALPHA_OPAQUE);
         SDL_RenderDrawPoint(renderer, x, y);
-        //pixels[y][x].setColor(color.getRed(), color.getGreen(), color.getBlue());
-        pixelDepth[key] = z;   
+        pixelDepth[key] = z;
     }
 
     void clearScreen() {
@@ -432,6 +464,7 @@ public:
         pixelDepth.clear();
     }
 
+    
     void setLine(long double x1, long double y1, long double z1, long double x2, long double y2, long double z2, Color& color) {
         if((int) (x1 + 0.5) == (int) (x2 + 0.5)) {
             if(y1 > y2) {
@@ -450,7 +483,7 @@ public:
             long double curZ = z1;
             for(int i = y1; i < y2; i++) {
                 curZ += yzSlope;
-                setPixel(x1, i, (int) (curZ + 0.5), color);
+                setPixel(x1, i, curZ, color);
             }
             return;
         }
@@ -473,7 +506,7 @@ public:
             for(int i = (int) (x1 + 0.5); i < x2; i++) {
                 curY += xySlope;
                 curZ += xzSlope;
-                setPixel(i, (int) (curY + 0.5), (int) (curZ + 0.5), color);
+                setPixel(i, (int) (curY + 0.5), curZ, color);
             }
             return;
         }
@@ -495,13 +528,86 @@ public:
         for(int i = (int) (y1 + 0.5); i < y2; i++) {
             curX += yxSlope;
             curZ += yzSlope;
-            setPixel((int) (curX + 0.5), i, (int) (curZ + 0.5), color);
+            setPixel((int) (curX + 0.5), i, curZ + 0.5, color);
+        }
+        return;
+    }
+
+
+    void setFaceEdges(long double x1, long double y1, long double z1, long double x2, long double y2, long double z2, std::unordered_map<std::pair<int, int>, long double, hash_pair>* face, Color& color) {
+        if((int) (x1 + 0.5) == (int) (x2 + 0.5)) {
+            if(y1 > y2) {
+                long double tempX = x1;
+                long double tempY = y1;
+                long double tempZ = z1;
+                x1 = x2;
+                y1 = y2;
+                z1 = z2;
+                x2 = tempX;
+                y2 = tempY;
+                z2 = tempZ;
+            }
+            long double yzSlope = (z2 - z1) / (y2 - y1);
+            x1 = (int) (x1 + 0.5);
+            long double curZ = z1;
+            for(int i = (int) (y1 + 0.5); i < (int) (y2 + 0.5); i++) {
+                curZ += yzSlope;
+                setPixel(x1, i, curZ, color);
+                (*face)[{x1, i}] = curZ;
+            }
+            return;
+        }
+        if(abs(y2 - y1) < abs(x2 - x1)) {
+            if(x1 > x2) {
+                long double tempX = x1;
+                long double tempY = y1;
+                long double tempZ = z1;
+                x1 = x2;
+                y1 = y2;
+                z1 = z2;
+                x2 = tempX;
+                y2 = tempY;
+                z2 = tempZ;
+            }
+            long double xySlope = (y2 - y1) / (x2 - x1);
+            long double xzSlope = (z2 - z1) / (x2 - x1);
+            long double curY = y1;
+            long double curZ = z1;
+            for(int i = (int) (x1 + 0.5); i < (int) (x2 + 0.5); i++) {
+                curY += xySlope;
+                curZ += xzSlope;
+                setPixel(i, (int) (curY + 0.5), curZ, color);
+                (*face)[{i, (int) (curY + 0.5)}] = curZ;
+            }
+            return;
+        }
+        if(y1 > y2) {
+            long double tempX = x1;
+            long double tempY = y1;
+            long double tempZ = z1;
+            x1 = x2;
+            y1 = y2;
+            z1 = z2;
+            x2 = tempX;
+            y2 = tempY;
+            z2 = tempZ;
+        }
+        long double yxSlope = (x2 - x1) / (y2 - y1);
+        long double yzSlope = (z2 - z1) / (y2 - y1);
+        long double curX = x1;
+        long double curZ = z1;
+        for(int i = (int) (y1 + 0.5); i < (int) (y2 + 0.5); i++) {
+            curX += yxSlope;
+            curZ += yzSlope;
+            setPixel((int) (curX + 0.5), i, curZ, color);
+            (*face)[{(int) (curX + 0.5), i}] = curZ;
         }
         return;
     }
 
     void setScreenCoordinates(Polyhedron& object) {
         std::vector<std::array<long double, 3>> rotatedVertices{};
+        
         std::vector<std::array<long double, 3>>& verticesPointer = object.getVertices();
         for(int i = 0; i < verticesPointer.size(); i++) {
             std::array<long double, 3> tempVerts = rotateVertex(verticesPointer[i][0],verticesPointer[i][1],verticesPointer[i][2],object.getRoll(),object.getPitch(),object.getYaw());
@@ -511,9 +617,75 @@ public:
             rotatedVertices.push_back(tempVerts);
         }
         std::vector<int>& vertsOrderPointer = object.getVertsOrder();
-        for(int i = 0; i < vertsOrderPointer.size() - 1; i++) {
-            setLine(rotatedVertices[vertsOrderPointer[i]][0], rotatedVertices[vertsOrderPointer[i]][1], rotatedVertices[vertsOrderPointer[i]][2], rotatedVertices[vertsOrderPointer[i+1]][0], rotatedVertices[vertsOrderPointer[i+1]][1], rotatedVertices[vertsOrderPointer[i+1]][2], object.getColor());
+        std::vector<std::vector<int>>& facesPointer = object.getFaces();
+
+        // for each face
+        for(int p = 0; p < facesPointer.size(); p++) {
+
+            std::unordered_map<std::pair<int, int>, long double, hash_pair> faceEdges;
+            int minX = (int) (rotatedVertices[facesPointer[p][0]][0] + 0.5);
+            int maxX = minX;
+            int minY = (int) (rotatedVertices[facesPointer[p][0]][1] + 0.5);
+            int maxY = minY;
+
+            long double x1 = rotatedVertices[facesPointer[p][0]][0];
+            long double y1 = rotatedVertices[facesPointer[p][0]][1];
+            long double z1 = rotatedVertices[facesPointer[p][0]][2];
+            long double x2 = x1;
+            long double y2 = y1;
+            long double xzSlope = 0;
+            long double yzSlope = 0;
+
+            // for each vertex in face
+            for(int i = 0; i < facesPointer[p].size() - 1; i++) {
+                if(rotatedVertices[facesPointer[p][i+1]][0] != x1 && x1 == x2) {
+                    x2 = rotatedVertices[facesPointer[p][i+1]][0];
+                    xzSlope = (rotatedVertices[facesPointer[p][i+1]][2] - z1) / (x2 - x1);
+                }
+                if(rotatedVertices[facesPointer[p][i+1]][1] != y1 && y1 == y2) {
+                    y2 = rotatedVertices[facesPointer[p][i+1]][1];
+                    yzSlope = (rotatedVertices[facesPointer[p][i+1]][2] - z1) / (y2 - y1);
+                }
+                minX = std::min(minX, (int) (rotatedVertices[facesPointer[p][i+1]][0] + 0.5));
+                maxX = std::max(maxX, (int) (rotatedVertices[facesPointer[p][i+1]][0] + 0.5));
+                minY = std::min(minY, (int) (rotatedVertices[facesPointer[p][i+1]][1] + 0.5));
+                maxY = std::max(maxY, (int) (rotatedVertices[facesPointer[p][i+1]][1] + 0.5));
+
+                setFaceEdges(rotatedVertices[facesPointer[p][i]][0], rotatedVertices[facesPointer[p][i]][1], rotatedVertices[facesPointer[p][i]][2], rotatedVertices[facesPointer[p][i+1]][0], rotatedVertices[facesPointer[p][i+1]][1], rotatedVertices[facesPointer[p][i+1]][2], &faceEdges, object.getOutlineColor());
+            }
+
+            long double z = rotatedVertices[facesPointer[p][0]][2] + (minY - rotatedVertices[facesPointer[p][0]][1]) * yzSlope + (minX - rotatedVertices[facesPointer[p][0]][0]) * xzSlope;
             
+            bool isInFace = false;
+
+            if(!isWireframe) {
+                //std::cout << z << " z" << std::endl;
+                //std::cout << xzSlope << " xz slope" << std::endl;
+                //std::cout << yzSlope << " yz slope" << std::endl;
+                for(int i = minY; i <= maxY; i++) {
+                    long double curZ = z;
+                    isInFace=false;
+                    for(int j = minX; j <= maxX; j++) {
+                        if(faceEdges.find({j, i}) != faceEdges.end()) {
+                            for(int x = j+1; x <= maxX; x++) {
+                                if(faceEdges.find({x, i}) == faceEdges.end()) {
+                                    break;
+                                }
+                                curZ += xzSlope;
+                                j++;
+                            }
+                            isInFace = !isInFace;
+                            curZ += xzSlope;
+                            continue;
+                        }
+                        if(isInFace) {
+                            setPixel(j, i, curZ, object.getColor());
+                        }
+                        curZ += xzSlope;
+                    }
+                    z += yzSlope;
+                }
+            }
         }
     }
 
@@ -574,6 +746,9 @@ public:
                 if (keyPressed == SDLK_g) {
                     Cube* poly = new Cube(camera.getX(), camera.getY() + 300, camera.getZ(), 100);
                     addObject(poly);
+                }
+                if (keyPressed == SDLK_f) {
+                    isWireframe = !isWireframe;
                 }
             }
         }
@@ -651,8 +826,8 @@ int main()
 
     Color RED = Color(255,0,0);
     Polyhedron test(200.0L, 200.0L, 200.0L, squareVerts, RED);
-    Cuboid cube(400, 300, 100, 100,100,100);
-    RegularPolygon hexagon(300, 300, 200, 8, 50, Color(0, 255, 255));
+    Cube cube(400, 300, 100, 100);
+    RegularPolygon hexagon(325, 300, 100, 8, 50, Color(0, 255, 255));
 
     //Polyhedron floor(0,350,0,std::vector<std::array<long double, 3>>{{-3000,0,-3000},{-3000,0,3000},{3000,0,3000},{3000,0,-3000}});
 
@@ -663,9 +838,9 @@ int main()
     int direction = 1;
     long double speed = 0.001;
     while(window.isOpen()) {
-        test.translateRoll(speed);
-        speed *= 1.0001;
-        //hexagon.translatePitch(-0.005);
+        //test.translateRoll(speed);
+        //speed *= 1.0001;
+        hexagon.translatePitch(-0.005);
         //cube.translateAngle(0.001,0.001,0.001);
         //if(cube.getX() > 600 || cube.getX() < 200) direction *= -1;
         //cube.translate(direction * 0.1, 0, 0);
