@@ -43,28 +43,6 @@ class GraphicsWindow;
 class Polyhedron;
 
 
-
-/* hash function from geeks for geeks
-thx bby i will use this
-https://www.geeksforgeeks.org/how-to-create-an-unordered_map-of-pairs-in-c/ */
-struct hash_pair {
-    template <class T1, class T2>
-    size_t operator()(const std::pair<T1, T2>& p) const
-    {
-        auto hash1 = std::hash<T1>{}(p.first);
-        auto hash2 = std::hash<T2>{}(p.second);
- 
-        if (hash1 != hash2) {
-            return hash1 ^ hash2;              
-        }
-         
-        // If hash1 == hash2, their XOR is zero.
-          return hash1;
-    }
-};
-
-
-
 class Color {
 private:
     int red;
@@ -481,7 +459,7 @@ public:
             long double yzSlope = (z2 - z1) / (y2 - y1);
             x1 = (int) (x1 + 0.5);
             long double curZ = z1;
-            for(int i = y1; i < y2; i++) {
+            for(int i = (int) (y1 + 0.5); i < (int) (y2 + 0.5); i++) {
                 curZ += yzSlope;
                 setPixel(x1, i, curZ, color);
             }
@@ -503,7 +481,7 @@ public:
             long double xzSlope = (z2 - z1) / (x2 - x1);
             long double curY = y1;
             long double curZ = z1;
-            for(int i = (int) (x1 + 0.5); i < x2; i++) {
+            for(int i = (x1 + 0.5); i < x2; i++) {
                 curY += xySlope;
                 curZ += xzSlope;
                 setPixel(i, (int) (curY + 0.5), curZ, color);
@@ -525,16 +503,16 @@ public:
         long double yzSlope = (z2 - z1) / (y2 - y1);
         long double curX = x1;
         long double curZ = z1;
-        for(int i = (int) (y1 + 0.5); i < y2; i++) {
+        for(int i = (y1 + 0.5); i < y2; i++) {
             curX += yxSlope;
             curZ += yzSlope;
-            setPixel((int) (curX + 0.5), i, curZ + 0.5, color);
+            setPixel((int) (curX + 0.5), i, curZ, color);
         }
         return;
     }
 
 
-    void setFaceEdges(long double x1, long double y1, long double z1, long double x2, long double y2, long double z2, std::unordered_map<std::pair<int, int>, long double, hash_pair>* face, Color& color) {
+    void setEdge(long double x1, long double y1, long double z1, long double x2, long double y2, long double z2, std::unordered_map<int, std::vector<std::pair<int, long double>>>* face, Color& color) {
         if((int) (x1 + 0.5) == (int) (x2 + 0.5)) {
             if(y1 > y2) {
                 long double tempX = x1;
@@ -552,11 +530,11 @@ public:
             long double curZ = z1;
             for(int i = (int) (y1 + 0.5); i < (int) (y2 + 0.5); i++) {
                 curZ += yzSlope;
-                setPixel(x1, i, curZ, color);
-                (*face)[{x1, i}] = curZ;
+                (*face)[i].push_back({x1, curZ});
             }
             return;
         }
+        
         if(abs(y2 - y1) < abs(x2 - x1)) {
             if(x1 > x2) {
                 long double tempX = x1;
@@ -573,14 +551,19 @@ public:
             long double xzSlope = (z2 - z1) / (x2 - x1);
             long double curY = y1;
             long double curZ = z1;
-            for(int i = (int) (x1 + 0.5); i < (int) (x2 + 0.5); i++) {
+            int prevY = (int) (curY + 0.5);
+            for(int i = (x1 + 0.5); i < x2; i++) {
                 curY += xySlope;
                 curZ += xzSlope;
-                setPixel(i, (int) (curY + 0.5), curZ, color);
-                (*face)[{i, (int) (curY + 0.5)}] = curZ;
+                if((int) (curY + 0.5) == prevY) {
+                    continue;
+                }
+                prevY = (int) (curY + 0.5);
+                (*face)[prevY].push_back({i, curZ});
             }
             return;
         }
+        
         if(y1 > y2) {
             long double tempX = x1;
             long double tempY = y1;
@@ -596,13 +579,29 @@ public:
         long double yzSlope = (z2 - z1) / (y2 - y1);
         long double curX = x1;
         long double curZ = z1;
-        for(int i = (int) (y1 + 0.5); i < (int) (y2 + 0.5); i++) {
+        for(int i = (y1 + 0.5); i < y2; i++) {
             curX += yxSlope;
             curZ += yzSlope;
-            setPixel((int) (curX + 0.5), i, curZ, color);
-            (*face)[{(int) (curX + 0.5), i}] = curZ;
+            (*face)[i].push_back({(int) (curX + 0.5), curZ});
         }
         return;
+    }
+
+    // draws a HORIZONTAL LINE
+    void setFillLine(int y, int x1, long double z1, int x2, long double z2, Color& color) {
+        if(x1 > x2) {
+            int tempX = x1;
+            long double tempZ = z1;
+                x1 = x2;
+                z1 = z2;
+                x2 = tempX;
+                z2 = tempZ;
+        }
+        long double xzSlope = (z2 - z1) / (x2 - x1);
+        for(int i = x1; i < x2; i++) {
+            setPixel(i, y, z1, color);
+            z1 += xzSlope;
+        }
     }
 
     void setScreenCoordinates(Polyhedron& object) {
@@ -622,7 +621,7 @@ public:
         // for each face
         for(int p = 0; p < facesPointer.size(); p++) {
 
-            std::unordered_map<std::pair<int, int>, long double, hash_pair> faceEdges;
+            std::unordered_map<int, std::vector<std::pair<int, long double>>> faceEdges;
             int minX = (int) (rotatedVertices[facesPointer[p][0]][0] + 0.5);
             int maxX = minX;
             int minY = (int) (rotatedVertices[facesPointer[p][0]][1] + 0.5);
@@ -651,41 +650,37 @@ public:
                 minY = std::min(minY, (int) (rotatedVertices[facesPointer[p][i+1]][1] + 0.5));
                 maxY = std::max(maxY, (int) (rotatedVertices[facesPointer[p][i+1]][1] + 0.5));
 
-                setFaceEdges(rotatedVertices[facesPointer[p][i]][0], rotatedVertices[facesPointer[p][i]][1], rotatedVertices[facesPointer[p][i]][2], rotatedVertices[facesPointer[p][i+1]][0], rotatedVertices[facesPointer[p][i+1]][1], rotatedVertices[facesPointer[p][i+1]][2], &faceEdges, object.getOutlineColor());
+                setEdge(rotatedVertices[facesPointer[p][i]][0], rotatedVertices[facesPointer[p][i]][1], rotatedVertices[facesPointer[p][i]][2], rotatedVertices[facesPointer[p][i+1]][0], rotatedVertices[facesPointer[p][i+1]][1], rotatedVertices[facesPointer[p][i+1]][2], &faceEdges, object.getOutlineColor());
             }
 
             long double z = rotatedVertices[facesPointer[p][0]][2] + (minY - rotatedVertices[facesPointer[p][0]][1]) * yzSlope + (minX - rotatedVertices[facesPointer[p][0]][0]) * xzSlope;
             
             bool isInFace = false;
 
+
             if(!isWireframe) {
                 //std::cout << z << " z" << std::endl;
                 //std::cout << xzSlope << " xz slope" << std::endl;
                 //std::cout << yzSlope << " yz slope" << std::endl;
-                for(int i = minY; i <= maxY; i++) {
-                    long double curZ = z;
-                    isInFace=false;
-                    for(int j = minX; j <= maxX; j++) {
-                        if(faceEdges.find({j, i}) != faceEdges.end()) {
-                            for(int x = j+1; x <= maxX; x++) {
-                                if(faceEdges.find({x, i}) == faceEdges.end()) {
-                                    break;
-                                }
-                                curZ += xzSlope;
-                                j++;
+
+                for (const auto & [ y, xzVals ] : faceEdges) {
+                    if (xzVals.size() != 2) {
+                        if(xzVals.size() > 2) {
+                            for (auto i: xzVals) {
+                                std::cout << i.first << ' ';
                             }
-                            isInFace = !isInFace;
-                            curZ += xzSlope;
-                            continue;
+                            std::cout << "is there a concave face? may not be filled correctly" << std::endl;
+                            
                         }
-                        if(isInFace) {
-                            setPixel(j, i, curZ, object.getColor());
-                        }
-                        curZ += xzSlope;
+                        continue;
                     }
-                    z += yzSlope;
+                    setFillLine(y, xzVals[0].first, xzVals[0].second, xzVals[1].first, xzVals[1].second, object.getColor());
                 }
             }
+        }
+
+        for(int i = 0; i < vertsOrderPointer.size() - 1; i++) {
+            setLine(rotatedVertices[vertsOrderPointer[i]][0], rotatedVertices[vertsOrderPointer[i]][1], rotatedVertices[vertsOrderPointer[i]][2], rotatedVertices[vertsOrderPointer[i+1]][0], rotatedVertices[vertsOrderPointer[i+1]][1], rotatedVertices[vertsOrderPointer[i+1]][2], object.getOutlineColor());
         }
     }
 
@@ -827,7 +822,7 @@ int main()
     Color RED = Color(255,0,0);
     Polyhedron test(200.0L, 200.0L, 200.0L, squareVerts, RED);
     Cube cube(400, 300, 100, 100);
-    RegularPolygon hexagon(325, 300, 100, 8, 50, Color(0, 255, 255));
+    RegularPolygon hexagon(275, 300, 100, 8, 50, Color(0, 255, 255));
 
     //Polyhedron floor(0,350,0,std::vector<std::array<long double, 3>>{{-3000,0,-3000},{-3000,0,3000},{3000,0,3000},{3000,0,-3000}});
 
@@ -840,7 +835,7 @@ int main()
     while(window.isOpen()) {
         //test.translateRoll(speed);
         //speed *= 1.0001;
-        hexagon.translatePitch(-0.005);
+        //hexagon.translatePitch(-0.005);
         //cube.translateAngle(0.001,0.001,0.001);
         //if(cube.getX() > 600 || cube.getX() < 200) direction *= -1;
         //cube.translate(direction * 0.1, 0, 0);
