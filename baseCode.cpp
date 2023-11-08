@@ -469,6 +469,20 @@ public:
             long double yzSlope = (z2 - z1) / (y2 - y1);
             x1 = (int) (x1 + 0.5);
             long double curZ = z1;
+            if(y1 < 0) {
+                curZ += yzSlope * (-1 - y1);
+                y1 = -1;
+            }
+            if(y2 < 0) {
+                y2 = -1;
+            }
+            if(y1 > screenHeight) {
+                curZ += yzSlope * (screenHeight - y1);
+                y1 = screenHeight;
+            }
+            if(y2 > screenHeight) {
+                y2 = screenHeight;
+            }
             for(int i = (int) (y1 + 0.5); i <= (int) (y2 + 0.5); i++) {
                 curZ += yzSlope;
                 setPixel(x1, i, curZ, color);
@@ -491,6 +505,22 @@ public:
             long double xzSlope = (z2 - z1) / (x2 - x1);
             long double curY = y1;
             long double curZ = z1;
+            if(x1 < 0) {
+            curZ += xzSlope * (-1 - x1);
+            curY += xySlope * (-1 - x1);
+            x1 = -1;
+            }
+            if(x2 < 0) {
+                x2 = -1;
+            }
+            if(x1 > screenWidth) {
+                curZ += xzSlope * (screenWidth - x1);
+                curY += xySlope * (screenWidth - x1);
+                x1 = screenWidth;
+            }
+            if(x2 > screenWidth) {
+                x2 = screenWidth;
+            }
             for(int i = (x1 + 0.5); i <= (int) (x2 + 0.5); i++) {
                 curY += xySlope;
                 curZ += xzSlope;
@@ -513,6 +543,22 @@ public:
         long double yzSlope = (z2 - z1) / (y2 - y1);
         long double curX = x1;
         long double curZ = z1;
+        if(y1 < 0) {
+            curZ += yzSlope * (-1 - y1);
+            curX += yxSlope * (-1 - y1);
+            y1 = -1;
+        }
+        if(y2 < 0) {
+            y2 = -1;
+        }
+        if(y1 > screenHeight) {
+            curZ += yzSlope * (screenHeight - y1);
+            curX += yxSlope * (screenHeight - y1);
+            y1 = screenHeight;
+        }
+        if(y2 > screenHeight) {
+            y2 = screenHeight;
+        }
         for(int i = (y1 + 0.5); i <= (int) (y2 + 0.5); i++) {
             curX += yxSlope;
             curZ += yzSlope;
@@ -538,6 +584,20 @@ public:
             long double yzSlope = (z2 - z1) / (y2 - y1);
             x1 = (int) (x1 + 0.5);
             long double curZ = z1;
+            if(y1 < 0) {
+                curZ += yzSlope * (-1 - y1);
+                y1 = -1;
+            }
+            if(y2 < 0) {
+                y2 = -1;
+            }
+            if(y1 > screenHeight) {
+                curZ += yzSlope * (screenHeight - y1);
+                y1 = screenHeight;
+            }
+            if(y2 > screenHeight) {
+                y2 = screenHeight;
+            }
             for(int i = (int) (y1 + 0.5); i <= (int) (y2 + 0.5); i++) {
                 curZ += yzSlope;
                 (*face)[i].push_back({x1, curZ});
@@ -562,6 +622,22 @@ public:
             long double curY = y1;
             long double curZ = z1;
             int prevY = (int) (curY + 0.5);
+            if(x1 < 0) {
+            curZ += xzSlope * (-1 - x1);
+            curY += xySlope * (-1 - x1);
+            x1 = -1;
+            }
+            if(x2 < 0) {
+                x2 = -1;
+            }
+            if(x1 > screenWidth) {
+                curZ += xzSlope * (screenWidth - x1);
+                curY += xySlope * (screenWidth - x1);
+                x1 = screenWidth;
+            }
+            if(x2 > screenWidth) {
+                x2 = screenWidth;
+            }
             for(int i = (x1 + 0.5); i <= (int) (x2 + 0.5); i++) {
                 curY += xySlope;
                 curZ += xzSlope;
@@ -589,6 +665,22 @@ public:
         long double yzSlope = (z2 - z1) / (y2 - y1);
         long double curX = x1;
         long double curZ = z1;
+        if(y1 < 0) {
+            curZ += yzSlope * (-1 - y1);
+            curX += yxSlope * (-1 - y1);
+            y1 = -1;
+        }
+        if(y2 < 0) {
+            y2 = -1;
+        }
+        if(y1 > screenHeight) {
+            curZ += yzSlope * (screenHeight - y1);
+            curX += yxSlope * (screenHeight - y1);
+            y1 = screenHeight;
+        }
+        if(y2 > screenHeight) {
+            y2 = screenHeight;
+        }
         for(int i = (y1 + 0.5); i <= (int) (y2 + 0.5); i++) {
             curX += yxSlope;
             curZ += yzSlope;
@@ -602,12 +694,15 @@ public:
         if(x1 > x2) {
             int tempX = x1;
             long double tempZ = z1;
-                x1 = x2;
-                z1 = z2;
-                x2 = tempX;
-                z2 = tempZ;
+            x1 = x2;
+            z1 = z2;
+            x2 = tempX;
+            z2 = tempZ;
         }
         long double xzSlope = (z2 - z1) / (x2 - x1);
+        x1 = std::min(std::max(x1, -1), screenWidth);
+        x2 = std::min(std::max(x2, -1), screenWidth);
+        y = std::min(std::max(y, -1), screenHeight);
         for(int i = x1; i < x2; i++) {
             setPixel(i, y, z1, color);
             z1 += xzSlope;
@@ -759,7 +854,7 @@ public:
         camera.updatePosition();
 
         std::array<long double, 3> rotatedXVertex = rotateVertex(50,0,0,camera.getRoll(), camera.getPitch(), camera.getYaw());
-        std::array<long double, 3> rotatedYVertex = rotateVertex(0,50,0,camera.getRoll(), camera.getPitch(), camera.getYaw());
+        std::array<long double, 3> rotatedYVertex = rotateVertex(0,-50,0,camera.getRoll(), camera.getPitch(), camera.getYaw());
         std::array<long double, 3> rotatedZVertex = rotateVertex(0,0,50,camera.getRoll(), camera.getPitch(), camera.getYaw());
         setLine(60,50,60,rotatedXVertex[0]+60, rotatedXVertex[1]+60, rotatedXVertex[2]+60, RED);
         setLine(60,50,60,rotatedYVertex[0]+60, rotatedYVertex[1]+60, rotatedYVertex[2]+60, GREEN);
