@@ -6,7 +6,7 @@
 #include <vector>
 #include <math.h>
 #include <array>
-#include <chrono>
+/*#include <chrono>*/
 #include <unordered_map>
 #include <utility>
 
@@ -158,27 +158,19 @@ public:
     }
 
     void translateRoll(long double dRoll) {
-        //std::cout << roll << std::endl;
-        //roll = std::fmod(roll + dRoll, 2*PI);
         roll += dRoll;
         // new slang when you notice the stripes!
     }
 
     void translatePitch(long double dPitch) {
-        //pitch = std::fmod(pitch + dPitch, 2*PI);
         pitch += dPitch;
     }
 
     void translateYaw(long double dYaw) {
-        //yaw = std::fmod(yaw + dYaw, 2*PI);
         yaw += dYaw;
     }
 
     void translateAngle(long double dRoll, long double dPitch, long double dYaw) {
-        //roll = std::fmod(roll + dRoll, 2*PI);
-        //pitch = std::fmod(pitch + dPitch, 2*PI);
-        //yaw = std::fmod(yaw + dYaw, 2*PI);
-
         roll += dRoll;
         pitch += dPitch;
         yaw += dYaw;
@@ -199,7 +191,7 @@ private:
     long double friction;
     long double movementSpeed;
     long double lookSpeed;
-    std::chrono::time_point<std::chrono::system_clock> timeWhenLastUpdated;
+    /*std::chrono::time_point<std::chrono::system_clock> timeWhenLastUpdated;*/
 
 public:
     Camera(long double x = 0, long double y = 0, long double z = 0,
@@ -209,19 +201,19 @@ public:
            long double vZ = 0)
         : GraphicalObject(x,y,z,roll,pitch,yaw), friction(friction),
           movementSpeed(movementSpeed), lookSpeed(lookSpeed),
-          vX(vX), vY(vY), vZ(vZ),
-          timeWhenLastUpdated(std::chrono::high_resolution_clock::now()) {}
+          vX(vX), vY(vY), vZ(vZ)/*,
+          timeWhenLastUpdated(std::chrono::high_resolution_clock::now())*/ {}
 
     void updatePosition() {
-        long double timeSinceLastFrame = std::chrono::duration_cast<std::chrono::nanoseconds>
-            (std::chrono::high_resolution_clock::now() - timeWhenLastUpdated).count() / 100000000.0L;
-        x += vX * timeSinceLastFrame;
-        y += vY * timeSinceLastFrame;
-        z += vZ * timeSinceLastFrame;
-        vX *= pow(friction, timeSinceLastFrame);
-        vY *= pow(friction, timeSinceLastFrame);
-        vZ *= pow(friction, timeSinceLastFrame);
-        timeWhenLastUpdated = std::chrono::high_resolution_clock::now();
+        /*long double timeSinceLastFrame = std::chrono::duration_cast<std::chrono::nanoseconds>
+            (std::chrono::high_resolution_clock::now() - timeWhenLastUpdated).count() / 100000000.0L;*/
+        x += vX/* * timeSinceLastFrame*/;
+        y += vY/* * timeSinceLastFrame*/;
+        z += vZ/* * timeSinceLastFrame*/;
+        vX *= /*pow(friction, timeSinceLastFrame);*/ friction;
+        vY *= /*pow(friction, timeSinceLastFrame);*/ friction;
+        vZ *= /*pow(friction, timeSinceLastFrame);*/ friction;
+        /*timeWhenLastUpdated = std::chrono::high_resolution_clock::now();*/
     }
 
     void translateVX(int direction) {
@@ -270,7 +262,10 @@ class Polyhedron : public GraphicalObject {
 protected:
 	std::vector<std::array<long double, 3>> vertices;
     std::vector<int> vertsOrder;
+
+    // FACES MUST BE CONVEX!!!
     std::vector<std::vector<int>> faces;
+
     Color outlineColor;
     Color color;
 
@@ -459,7 +454,7 @@ public:
             long double yzSlope = (z2 - z1) / (y2 - y1);
             x1 = (int) (x1 + 0.5);
             long double curZ = z1;
-            for(int i = (int) (y1 + 0.5); i < (int) (y2 + 0.5); i++) {
+            for(int i = (int) (y1 + 0.5); i <= (int) (y2 + 0.5); i++) {
                 curZ += yzSlope;
                 setPixel(x1, i, curZ, color);
             }
@@ -481,7 +476,7 @@ public:
             long double xzSlope = (z2 - z1) / (x2 - x1);
             long double curY = y1;
             long double curZ = z1;
-            for(int i = (x1 + 0.5); i < x2; i++) {
+            for(int i = (x1 + 0.5); i <= (int) (x2 + 0.5); i++) {
                 curY += xySlope;
                 curZ += xzSlope;
                 setPixel(i, (int) (curY + 0.5), curZ, color);
@@ -503,7 +498,7 @@ public:
         long double yzSlope = (z2 - z1) / (y2 - y1);
         long double curX = x1;
         long double curZ = z1;
-        for(int i = (y1 + 0.5); i < y2; i++) {
+        for(int i = (y1 + 0.5); i <= (int) (y2 + 0.5); i++) {
             curX += yxSlope;
             curZ += yzSlope;
             setPixel((int) (curX + 0.5), i, curZ, color);
@@ -528,7 +523,7 @@ public:
             long double yzSlope = (z2 - z1) / (y2 - y1);
             x1 = (int) (x1 + 0.5);
             long double curZ = z1;
-            for(int i = (int) (y1 + 0.5); i < (int) (y2 + 0.5); i++) {
+            for(int i = (int) (y1 + 0.5); i <= (int) (y2 + 0.5); i++) {
                 curZ += yzSlope;
                 (*face)[i].push_back({x1, curZ});
             }
@@ -552,7 +547,7 @@ public:
             long double curY = y1;
             long double curZ = z1;
             int prevY = (int) (curY + 0.5);
-            for(int i = (x1 + 0.5); i < x2; i++) {
+            for(int i = (x1 + 0.5); i <= (int) (x2 + 0.5); i++) {
                 curY += xySlope;
                 curZ += xzSlope;
                 if((int) (curY + 0.5) == prevY) {
@@ -579,7 +574,7 @@ public:
         long double yzSlope = (z2 - z1) / (y2 - y1);
         long double curX = x1;
         long double curZ = z1;
-        for(int i = (y1 + 0.5); i < y2; i++) {
+        for(int i = (y1 + 0.5); i <= (int) (y2 + 0.5); i++) {
             curX += yxSlope;
             curZ += yzSlope;
             (*face)[i].push_back({(int) (curX + 0.5), curZ});
@@ -622,52 +617,19 @@ public:
         for(int p = 0; p < facesPointer.size(); p++) {
 
             std::unordered_map<int, std::vector<std::pair<int, long double>>> faceEdges;
-            int minX = (int) (rotatedVertices[facesPointer[p][0]][0] + 0.5);
-            int maxX = minX;
-            int minY = (int) (rotatedVertices[facesPointer[p][0]][1] + 0.5);
-            int maxY = minY;
-
-            long double x1 = rotatedVertices[facesPointer[p][0]][0];
-            long double y1 = rotatedVertices[facesPointer[p][0]][1];
-            long double z1 = rotatedVertices[facesPointer[p][0]][2];
-            long double x2 = x1;
-            long double y2 = y1;
-            long double xzSlope = 0;
-            long double yzSlope = 0;
 
             // for each vertex in face
             for(int i = 0; i < facesPointer[p].size() - 1; i++) {
-                if(rotatedVertices[facesPointer[p][i+1]][0] != x1 && x1 == x2) {
-                    x2 = rotatedVertices[facesPointer[p][i+1]][0];
-                    xzSlope = (rotatedVertices[facesPointer[p][i+1]][2] - z1) / (x2 - x1);
-                }
-                if(rotatedVertices[facesPointer[p][i+1]][1] != y1 && y1 == y2) {
-                    y2 = rotatedVertices[facesPointer[p][i+1]][1];
-                    yzSlope = (rotatedVertices[facesPointer[p][i+1]][2] - z1) / (y2 - y1);
-                }
-                minX = std::min(minX, (int) (rotatedVertices[facesPointer[p][i+1]][0] + 0.5));
-                maxX = std::max(maxX, (int) (rotatedVertices[facesPointer[p][i+1]][0] + 0.5));
-                minY = std::min(minY, (int) (rotatedVertices[facesPointer[p][i+1]][1] + 0.5));
-                maxY = std::max(maxY, (int) (rotatedVertices[facesPointer[p][i+1]][1] + 0.5));
 
                 setEdge(rotatedVertices[facesPointer[p][i]][0], rotatedVertices[facesPointer[p][i]][1], rotatedVertices[facesPointer[p][i]][2], rotatedVertices[facesPointer[p][i+1]][0], rotatedVertices[facesPointer[p][i+1]][1], rotatedVertices[facesPointer[p][i+1]][2], &faceEdges, object.getOutlineColor());
             }
 
-            long double z = rotatedVertices[facesPointer[p][0]][2] + (minY - rotatedVertices[facesPointer[p][0]][1]) * yzSlope + (minX - rotatedVertices[facesPointer[p][0]][0]) * xzSlope;
-            
-            bool isInFace = false;
-
-
             if(!isWireframe) {
-                //std::cout << z << " z" << std::endl;
-                //std::cout << xzSlope << " xz slope" << std::endl;
-                //std::cout << yzSlope << " yz slope" << std::endl;
-
                 for (const auto & [ y, xzVals ] : faceEdges) {
                     if (xzVals.size() != 2) {
                         if(xzVals.size() > 2) {
-                            for (auto i: xzVals) {
-                                std::cout << i.first << ' ';
+                            for (int i = 0; i < xzVals.size() - 1; i++) {
+                                setFillLine(y, xzVals[i].first, xzVals[i].second, xzVals[i+1].first, xzVals[i+1].second, object.getColor());
                             }
                             std::cout << "is there a concave face? may not be filled correctly" << std::endl;
                             
@@ -812,10 +774,10 @@ public:
 int main()
 {
     std::vector<std::array<long double, 3>> squareVerts {
-            {0.0L, 0.0L, 0.0L},
-            {0.0L, -50.0L, 0.0L},
-            {-50.0L, -50.0L, 0.0L},
-            {-50.0L, 0.0L, 0.0L}
+            {25.0L, 25.0L, 25.0L},
+            {25.0L, -25.0L, 25.0L},
+            {-25.0L, -25.0L, 25.0L},
+            {-25.0L, 25.0L, 25.0L}
     };
 
 
@@ -827,15 +789,15 @@ int main()
     //Polyhedron floor(0,350,0,std::vector<std::array<long double, 3>>{{-3000,0,-3000},{-3000,0,3000},{3000,0,3000},{3000,0,-3000}});
 
     std::vector<Polyhedron*> objects{&test, &hexagon, &cube/*, &floor*/};
-    GraphicsWindow window(800, 400, &objects, Color(255,255,255), Camera(0,0,-1000,0,0,0));
+    GraphicsWindow window(800, 400, &objects, Color(100,100,100), Camera(0,0,-1000,0,0,0));
     
     window.open();
     int direction = 1;
     long double speed = 0.001;
     while(window.isOpen()) {
-        //test.translateRoll(speed);
+        test.translateYaw(0.01);
         //speed *= 1.0001;
-        //hexagon.translatePitch(-0.005);
+        hexagon.translatePitch(-0.005);
         //cube.translateAngle(0.001,0.001,0.001);
         //if(cube.getX() > 600 || cube.getX() < 200) direction *= -1;
         //cube.translate(direction * 0.1, 0, 0);
