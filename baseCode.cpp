@@ -15,6 +15,7 @@
 #define UP 1
 #define RIGHT 1
 #define DOWN -1
+#define SQRT3 1.73205080757
 
 
 const std::vector<std::array<long double, 3>> cubeVerts {
@@ -266,12 +267,14 @@ protected:
     // FACES MUST BE CONVEX!!!
     std::vector<std::vector<int>> faces;
 
+    std::vector<std::array<long double, 3>> facesPerp;
+
     Color outlineColor;
     Color color;
 
 public:
-	Polyhedron(long double x = 0, long double y = 0, long double z = 0, std::vector<std::array<long double, 3>> vertices = {}, Color color = Color(255,0,220), Color outlineColor = Color(), std::vector<std::vector<int>> faces = {}, std::vector<int> vertsOrder = {}, long double roll = 0, long double pitch = 0, long double yaw = 0)
-    : GraphicalObject(x, y, z, roll, pitch, yaw), vertices(vertices), vertsOrder(verifyVertsOrder(vertsOrder)), faces(verifyFaces(faces)), color(color), outlineColor(outlineColor) {}
+	Polyhedron(long double x = 0, long double y = 0, long double z = 0, std::vector<std::array<long double, 3>> vertices = {}, Color color = Color(255,0,220), Color outlineColor = Color(), std::vector<std::array<long double, 3>> facesPerp = {}, std::vector<std::vector<int>> faces = {}, std::vector<int> vertsOrder = {}, long double roll = 0, long double pitch = 0, long double yaw = 0)
+    : GraphicalObject(x, y, z, roll, pitch, yaw), vertices(vertices), vertsOrder(verifyVertsOrder(vertsOrder)), faces(verifyFaces(faces)), color(color), outlineColor(outlineColor), facesPerp(verifyFacePerp(facesPerp, faces.size())) {}
 
     std::vector<int> verifyVertsOrder(std::vector<int> vertsOrder) {
         if(vertsOrder.size() != 0) {
@@ -286,6 +289,14 @@ public:
         }
         faces.push_back(defaultVertsOrder());
         return faces;
+    }
+
+
+    std::vector<std::array<long double, 3>> verifyFacePerp(std::vector<std::array<long double, 3>> facesPerp, int size) {
+        if(facesPerp.size() < size) {
+            throw std::invalid_argument("u need to give a perpendicular vector to every face my brain is rotting");
+        }
+        return facesPerp;
     }
 
     std::vector<int> defaultVertsOrder() {
@@ -317,6 +328,10 @@ public:
     std::vector<std::array<long double, 3>>& getVertices() {
         return vertices;
     }
+
+    std::vector<std::array<long double, 3>>& getFacesPerp() {
+        return facesPerp;
+    }
 };
 
 class RegularPolygon : public Polyhedron {
@@ -336,7 +351,7 @@ protected:
 
 public:
     RegularPolygon(long double x = 0, long double y = 0, long double z = 0, int numSides = 5, long double circumradius = 50, Color color = Color(255,0,220), Color outlineColor = Color())
-    : numSides(numSides), circumradius(circumradius), Polyhedron(x, y, z, calculateRegularPolygonVertices(numSides, circumradius), color, outlineColor) {}
+    : numSides(numSides), circumradius(circumradius), Polyhedron(x, y, z, calculateRegularPolygonVertices(numSides, circumradius), color, outlineColor, std::vector<std::array<long double, 3>>{{0,0,1}}) {}
 
     long double getCircumradius() const {
         return circumradius;
@@ -379,7 +394,7 @@ protected:
 
 public:
     Cuboid(long double x = 0, long double y = 0, long double z = 0, long double width = 100, long double height = 100, long double depth = 100, Color color = Color(255,0,220), Color outlineColor = Color())
-    : width(width), height(height), depth(depth), Polyhedron(x, y, z, calculateCuboidVertices(width, height, depth), color, outlineColor, std::vector<std::vector<int>> {{0,1,2,3,0},{0,4,5,1,0},{4,5,6,7,4},{7,6,2,3,7},{1,5,6,2,1},{0,4,7,3,0}}, std::vector<int> {0,1,2,3,0,4,5,6,7,4,0,1,5,6,2,3,7}) {}
+    : width(width), height(height), depth(depth), Polyhedron(x, y, z, calculateCuboidVertices(width, height, depth), color, outlineColor, std::vector<std::array<long double, 3>>{{0,0,1},{-1,0,0},{0,1,0},{0,0,-1},{0,-1,0},{1,0,0}}, std::vector<std::vector<int>> {{0,1,2,3,0},{0,4,5,1,0},{4,5,6,7,4},{7,6,2,3,7},{1,5,6,2,1},{0,4,7,3,0}}, std::vector<int> {0,1,2,3,0,4,5,6,7,4,0,1,5,6,2,3,7}) {}
 };
 
 class Cube : public Cuboid {
@@ -507,7 +522,7 @@ public:
     }
 
 
-    void setEdge(long double x1, long double y1, long double z1, long double x2, long double y2, long double z2, std::unordered_map<int, std::vector<std::pair<int, long double>>>* face, Color& color) {
+    void setEdge(long double x1, long double y1, long double z1, long double x2, long double y2, long double z2, std::unordered_map<int, std::vector<std::pair<int, long double>>>* face) {
         if((int) (x1 + 0.5) == (int) (x2 + 0.5)) {
             if(y1 > y2) {
                 long double tempX = x1;
@@ -603,6 +618,7 @@ public:
         std::vector<std::array<long double, 3>> rotatedVertices{};
         
         std::vector<std::array<long double, 3>>& verticesPointer = object.getVertices();
+        std::vector<std::array<long double, 3>>& facesPerpPointer = object.getFacesPerp();
         for(int i = 0; i < verticesPointer.size(); i++) {
             std::array<long double, 3> tempVerts = rotateVertex(verticesPointer[i][0],verticesPointer[i][1],verticesPointer[i][2],object.getRoll(),object.getPitch(),object.getYaw());
             tempVerts = rotateVertex(tempVerts[0] + object.getX() - camera.getX(), tempVerts[1] + object.getY() - camera.getY(), tempVerts[2] + object.getZ() - camera.getZ(), camera.getRoll(), camera.getPitch(), camera.getYaw());
@@ -617,11 +633,14 @@ public:
         for(int p = 0; p < facesPointer.size(); p++) {
 
             std::unordered_map<int, std::vector<std::pair<int, long double>>> faceEdges;
-
+            std::array<long double, 3> facePerpRotated = rotateVertex(facesPerpPointer[p][0], facesPerpPointer[p][1], facesPerpPointer[p][2], object.getRoll(), object.getPitch(), object.getYaw());
+            long double amtColor = std::min(std::max(1 - (std::acos((-facePerpRotated[0] + facePerpRotated[0]  + facePerpRotated[2]) / SQRT3) / PI), (long double) 0.0), (long double) 1);
+            Color& color = object.getColor();
+            Color shadedColor(color.getRed() * amtColor, color.getGreen() * amtColor, color.getBlue() * amtColor);
             // for each vertex in face
             for(int i = 0; i < facesPointer[p].size() - 1; i++) {
 
-                setEdge(rotatedVertices[facesPointer[p][i]][0], rotatedVertices[facesPointer[p][i]][1], rotatedVertices[facesPointer[p][i]][2], rotatedVertices[facesPointer[p][i+1]][0], rotatedVertices[facesPointer[p][i+1]][1], rotatedVertices[facesPointer[p][i+1]][2], &faceEdges, object.getOutlineColor());
+                setEdge(rotatedVertices[facesPointer[p][i]][0], rotatedVertices[facesPointer[p][i]][1], rotatedVertices[facesPointer[p][i]][2], rotatedVertices[facesPointer[p][i+1]][0], rotatedVertices[facesPointer[p][i+1]][1], rotatedVertices[facesPointer[p][i+1]][2], &faceEdges);
             }
 
             if(!isWireframe) {
@@ -629,20 +648,21 @@ public:
                     if (xzVals.size() != 2) {
                         if(xzVals.size() > 2) {
                             for (int i = 0; i < xzVals.size() - 1; i++) {
-                                setFillLine(y, xzVals[i].first, xzVals[i].second, xzVals[i+1].first, xzVals[i+1].second, object.getColor());
+                                setFillLine(y, xzVals[i].first, xzVals[i].second, xzVals[i+1].first, xzVals[i+1].second, shadedColor);
                             }
                             std::cout << "is there a concave face? may not be filled correctly" << std::endl;
                             
                         }
                         continue;
                     }
-                    setFillLine(y, xzVals[0].first, xzVals[0].second, xzVals[1].first, xzVals[1].second, object.getColor());
+                    setFillLine(y, xzVals[0].first, xzVals[0].second, xzVals[1].first, xzVals[1].second, shadedColor);
                 }
             }
         }
-
-        for(int i = 0; i < vertsOrderPointer.size() - 1; i++) {
-            setLine(rotatedVertices[vertsOrderPointer[i]][0], rotatedVertices[vertsOrderPointer[i]][1], rotatedVertices[vertsOrderPointer[i]][2], rotatedVertices[vertsOrderPointer[i+1]][0], rotatedVertices[vertsOrderPointer[i+1]][1], rotatedVertices[vertsOrderPointer[i+1]][2], object.getOutlineColor());
+        if(isWireframe) {
+            for(int i = 0; i < vertsOrderPointer.size() - 1; i++) {
+                setLine(rotatedVertices[vertsOrderPointer[i]][0], rotatedVertices[vertsOrderPointer[i]][1], rotatedVertices[vertsOrderPointer[i]][2], rotatedVertices[vertsOrderPointer[i+1]][0], rotatedVertices[vertsOrderPointer[i+1]][1], rotatedVertices[vertsOrderPointer[i+1]][2], object.getOutlineColor());
+            }
         }
     }
 
@@ -782,14 +802,14 @@ int main()
 
 
     Color RED = Color(255,0,0);
-    Polyhedron test(200.0L, 200.0L, 200.0L, squareVerts, RED);
+    Polyhedron test(200.0L, 200.0L, 200.0L, squareVerts, RED, Color(), std::vector<std::array<long double, 3>>{{0,0,1}});
     Cube cube(400, 300, 100, 100);
     RegularPolygon hexagon(275, 300, 100, 8, 50, Color(0, 255, 255));
 
     //Polyhedron floor(0,350,0,std::vector<std::array<long double, 3>>{{-3000,0,-3000},{-3000,0,3000},{3000,0,3000},{3000,0,-3000}});
 
     std::vector<Polyhedron*> objects{&test, &hexagon, &cube/*, &floor*/};
-    GraphicsWindow window(800, 400, &objects, Color(100,100,100), Camera(0,0,-1000,0,0,0));
+    GraphicsWindow window(800, 400, &objects, Color(200,200,200), Camera(0,0,-1000,0,0,0));
     
     window.open();
     int direction = 1;
@@ -798,7 +818,7 @@ int main()
         test.translateYaw(0.01);
         //speed *= 1.0001;
         hexagon.translatePitch(-0.005);
-        //cube.translateAngle(0.001,0.001,0.001);
+        cube.translateAngle(0.001,0.001,0.001);
         //if(cube.getX() > 600 || cube.getX() < 200) direction *= -1;
         //cube.translate(direction * 0.1, 0, 0);
         window.refresh();
