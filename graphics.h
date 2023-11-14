@@ -1,4 +1,6 @@
-// g++ -o baseCode baseCode.cpp -lSDL2 -lGL -lGLU -lglut -I/usr/include/SDL2 -L/usr/lib
+// graphics.h
+#ifndef GRAPHICS_H
+#define GRAPHICS_H
 
 #include <SDL2/SDL.h>
 #include <iostream>
@@ -709,7 +711,7 @@ public:
         }
     }
 
-    void setScreenCoordinates(Polyhedron& object) {
+    void draw(Polyhedron& object) {
         std::vector<std::array<long double, 3>> rotatedVertices{};
         
         std::vector<std::array<long double, 3>>& verticesPointer = object.getVertices();
@@ -724,37 +726,40 @@ public:
         std::vector<int>& vertsOrderPointer = object.getVertsOrder();
         std::vector<std::vector<int>>& facesPointer = object.getFaces();
 
-        // for each face
-        for(int p = 0; p < facesPointer.size(); p++) {
+        if(!isWireframe) {
 
-            std::unordered_map<int, std::vector<std::pair<int, long double>>> faceEdges;
-            std::array<long double, 3> facePerpRotated = rotateVertex(facesPerpPointer[p][0], facesPerpPointer[p][1], facesPerpPointer[p][2], object.getRoll(), object.getPitch(), object.getYaw());
-            long double amtColor = std::min(std::max(1 - (std::acos((-facePerpRotated[0] + facePerpRotated[0]  + facePerpRotated[2]) / SQRT3) / PI), (long double) 0.0), (long double) 1);
-            Color& color = object.getColor();
-            Color shadedColor(color.getRed() * amtColor, color.getGreen() * amtColor, color.getBlue() * amtColor);
-            // for each vertex in face
-            for(int i = 0; i < facesPointer[p].size() - 1; i++) {
+            // for each face
+            for(int p = 0; p < facesPointer.size(); p++) {
 
-                setEdge(rotatedVertices[facesPointer[p][i]][0], rotatedVertices[facesPointer[p][i]][1], rotatedVertices[facesPointer[p][i]][2], rotatedVertices[facesPointer[p][i+1]][0], rotatedVertices[facesPointer[p][i+1]][1], rotatedVertices[facesPointer[p][i+1]][2], &faceEdges);
-            }
+                std::unordered_map<int, std::vector<std::pair<int, long double>>> faceEdges;
+                std::array<long double, 3> facePerpRotated = rotateVertex(facesPerpPointer[p][0], facesPerpPointer[p][1], facesPerpPointer[p][2], object.getRoll(), object.getPitch(), object.getYaw());
+                long double amtColor = std::min(std::max(1 - (std::acos((-facePerpRotated[0] + facePerpRotated[0]  + facePerpRotated[2]) / SQRT3) / PI), (long double) 0.0), (long double) 1);
+                Color& color = object.getColor();
+                Color shadedColor(color.getRed() * amtColor, color.getGreen() * amtColor, color.getBlue() * amtColor);
+                // for each vertex in face
+                for(int i = 0; i < facesPointer[p].size() - 1; i++) {
 
-            if(!isWireframe) {
-                for (const auto & [ y, xzVals ] : faceEdges) {
-                    if (xzVals.size() != 2) {
-                        if(xzVals.size() > 2) {
-                            for (int i = 0; i < xzVals.size() - 1; i++) {
-                                setFillLine(y, xzVals[i].first, xzVals[i].second, xzVals[i+1].first, xzVals[i+1].second, shadedColor);
-                            }
-                            std::cout << "is there a concave face? may not be filled correctly" << std::endl;
-                            
-                        }
-                        continue;
-                    }
-                    setFillLine(y, xzVals[0].first, xzVals[0].second, xzVals[1].first, xzVals[1].second, shadedColor);
+                    setEdge(rotatedVertices[facesPointer[p][i]][0], rotatedVertices[facesPointer[p][i]][1], rotatedVertices[facesPointer[p][i]][2], rotatedVertices[facesPointer[p][i+1]][0], rotatedVertices[facesPointer[p][i+1]][1], rotatedVertices[facesPointer[p][i+1]][2], &faceEdges);
                 }
+
+                
+                    for (const auto & [ y, xzVals ] : faceEdges) {
+                        if (xzVals.size() != 2) {
+                            if(xzVals.size() > 2) {
+                                for (int i = 0; i < xzVals.size() - 1; i++) {
+                                    setFillLine(y, xzVals[i].first, xzVals[i].second, xzVals[i+1].first, xzVals[i+1].second, shadedColor);
+                                }
+                                std::cout << "is there a concave face? may not be filled correctly" << std::endl;
+                                
+                            }
+                            continue;
+                        }
+                        setFillLine(y, xzVals[0].first, xzVals[0].second, xzVals[1].first, xzVals[1].second, shadedColor);
+                    }
+                
             }
         }
-        if(isWireframe) {
+        else {
             for(int i = 0; i < vertsOrderPointer.size() - 1; i++) {
                 setLine(rotatedVertices[vertsOrderPointer[i]][0], rotatedVertices[vertsOrderPointer[i]][1], rotatedVertices[vertsOrderPointer[i]][2], rotatedVertices[vertsOrderPointer[i+1]][0], rotatedVertices[vertsOrderPointer[i+1]][1], rotatedVertices[vertsOrderPointer[i+1]][2], object.getOutlineColor());
             }
@@ -848,7 +853,7 @@ public:
         }
 
         for(int i = 0; i < objects->size(); i++) {
-            setScreenCoordinates(*((*objects)[i]));
+            draw(*((*objects)[i]));
         }
 
         camera.updatePosition();
@@ -883,39 +888,4 @@ public:
     }
 };
 
-
-
-
-int main()
-{
-    std::vector<std::array<long double, 3>> squareVerts {
-            {25.0L, 25.0L, 25.0L},
-            {25.0L, -25.0L, 25.0L},
-            {-25.0L, -25.0L, 25.0L},
-            {-25.0L, 25.0L, 25.0L}
-    };
-
-
-    Color RED = Color(255,0,0);
-    Polyhedron test(200.0L, 200.0L, 200.0L, squareVerts, RED, Color(), std::vector<std::array<long double, 3>>{{0,0,1}});
-    Cube cube(400, 300, 100, 100);
-    RegularPolygon hexagon(275, 300, 100, 8, 50, Color(0, 255, 255));
-
-    //Polyhedron floor(0,350,0,std::vector<std::array<long double, 3>>{{-3000,0,-3000},{-3000,0,3000},{3000,0,3000},{3000,0,-3000}});
-
-    std::vector<Polyhedron*> objects{&test, &hexagon, &cube/*, &floor*/};
-    GraphicsWindow window(800, 400, &objects, Color(200,200,200), Camera(0,0,-1000,0,0,0));
-    
-    window.open();
-    int direction = 1;
-    long double speed = 0.001;
-    while(window.isOpen()) {
-        test.translateYaw(0.01);
-        //speed *= 1.0001;
-        hexagon.translatePitch(-0.005);
-        cube.translateAngle(0.001,0.001,0.001);
-        //if(cube.getX() > 600 || cube.getX() < 200) direction *= -1;
-        //cube.translate(direction * 0.1, 0, 0);
-        window.refresh();
-    }
-}
+#endif // GRAPHICS_H
