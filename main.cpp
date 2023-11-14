@@ -3,7 +3,7 @@
 #include <array>
 
 
-/*EXAMPLE SCENE CODE*/
+/* EXAMPLE SCENE CODE */
 int main()
 {
     std::vector<std::array<long double, 3>> squareVerts {
